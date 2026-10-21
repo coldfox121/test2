@@ -1,0 +1,16 @@
+# 操作系统
+Thumbs.db
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# wrangler 本地开发
+.wrangler/
+.dev.vars
+node_modules/
