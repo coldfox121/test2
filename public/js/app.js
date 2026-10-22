@@ -8,7 +8,7 @@
   const TOKEN_KEY = 'wuting.cloud.token';
   const GUEST_KEY = 'wuting.guest.save';
 
-  const STORY = window.STORY;
+  let STORY = window.STORY;
 
   /* ---------------- DOM ---------------- */
 
@@ -41,20 +41,30 @@
   const modalClose = document.getElementById('modalClose');
   const toastEl = document.getElementById('toast');
 
+  const previewBar = document.getElementById('previewBar');
+  const previewExit = document.getElementById('previewExit');
+
   /* ---------------- 状态 ---------------- */
 
   let state = null;
   let mode = 'guest';
   let cloudName = '';
+  let cloudRole = 'player';
   let authMode = 'login';
   let dirty = false;
   let saveChain = Promise.resolve();
   let toastTimer = 0;
+  let storyVersion = 0;
+  let storySource = 'builtin';
+  let previewing = false;
+  let previewBackup = null;
+  let previewExitCallback = null;
 
   /* ---------------- 云端账号（Cloudflare Pages Functions + D1） ---------------- */
 
   const Cloud = {
     token: null,
+    role: 'player',
 
     // 探测当前环境是否有云后端（本地 python 静态服务时无 /api，自动降级为本地试玩）
     async detect() {
@@ -100,6 +110,7 @@
         body: JSON.stringify({ username: username, password: password })
       });
       this.setToken(data.token);
+      this.role = data.role || 'player';
       return data.username;
     },
 
@@ -109,11 +120,36 @@
         body: JSON.stringify({ username: username, password: password })
       });
       this.setToken(data.token);
+      this.role = data.role || 'player';
       return data.username;
     },
 
     async loadGame() {
-      return this.api('load', { method: 'GET' });
+      const data = await this.api('load', { method: 'GET' });
+      this.role = data.role || 'player';
+      return data;
+    },
+
+    async uploadImage(file) {
+      const headers = {};
+      if (this.token) headers.Authorization = 'Bearer ' + this.token;
+
+      const form = new FormData();
+      form.append('file', file);
+
+      const res = await fetch('/api/admin/images', { method: 'POST', headers: headers, body: form });
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (err) {
+        // 保持下面统一处理
+      }
+      if (!res.ok) {
+        const error = new Error(data.error || ('上传失败 (' + res.status + ')'));
+        error.status = res.status;
+        throw error;
+      }
+      return data;
     },
 
     async saveGame(save) {
@@ -154,7 +190,7 @@
   function newState() {
     return {
       version: SAVE_VERSION,
-      node: STORY.START,
+      node: STORY.start,
       flags: {},
       endings: [],
       startedAt: Date.now()
@@ -165,7 +201,7 @@
     const fresh = newState();
     if (!raw || typeof raw !== 'object') return fresh;
 
-    if (typeof raw.node === 'string' && STORY.NODES[raw.node]) fresh.node = raw.node;
+    if (typeof raw.node === 'string' && STORY.nodes[raw.node]) fresh.node = raw.node;
     if (raw.flags && typeof raw.flags === 'object') {
       Object.keys(raw.flags).forEach(function (key) {
         if (raw.flags[key]) fresh.flags[key] = true;
@@ -173,7 +209,7 @@
     }
     if (Array.isArray(raw.endings)) {
       raw.endings.forEach(function (id) {
-        if (STORY.ENDINGS.some(function (e) { return e.id === id; }) && fresh.endings.indexOf(id) === -1) {
+        if (STORY.endings.some(function (e) { return e.id === id; }) && fresh.endings.indexOf(id) === -1) {
           fresh.endings.push(id);
         }
       });
@@ -210,7 +246,7 @@
   }
 
   function setScene(sceneKey) {
-    const url = STORY.SCENES[sceneKey];
+    const url = STORY.scenes[sceneKey];
     if (!url || sceneImg.dataset.scene === sceneKey) return;
     sceneImg.dataset.scene = sceneKey;
     sceneImg.classList.remove('ready');
@@ -226,7 +262,7 @@
   }
 
   function renderNode(nodeId) {
-    const node = STORY.NODES[nodeId];
+    const node = STORY.nodes[nodeId];
     if (!node) return;
     state.node = nodeId;
     if (node.set) Object.assign(state.flags, node.set);
@@ -286,7 +322,7 @@
   function choose(choice) {
     if (choice.set) Object.assign(state.flags, choice.set);
     const nextId = resolveNext(choice.next);
-    if (!nextId || !STORY.NODES[nextId]) return;
+    if (!nextId || !STORY.nodes[nextId]) return;
     renderNode(nextId);
     saveNow(false);
   }
@@ -294,15 +330,15 @@
   function unlockEnding(id) {
     if (state.endings.indexOf(id) !== -1) return;
     state.endings.push(id);
-    const meta = STORY.ENDINGS.find(function (e) { return e.id === id; });
+    const meta = STORY.endings.find(function (e) { return e.id === id; });
     toast('结局解锁：' + (meta ? meta.title : id));
   }
 
   // 重新开始本轮：清空旗标回到起点，保留已解锁结局
   function restartRun() {
-    state.node = STORY.START;
+    state.node = STORY.start;
     state.flags = {};
-    renderNode(STORY.START);
+    renderNode(STORY.start);
     saveNow(false);
   }
 
@@ -313,7 +349,7 @@
   }
 
   function saveNow(feedback) {
-    if (!state) return Promise.resolve();
+    if (!state || previewing) return Promise.resolve();
     saveChain = saveChain.then(function () { return doSave(feedback); });
     return saveChain;
   }
@@ -343,7 +379,7 @@
 
     state = newState();
     dirty = true;
-    renderNode(STORY.START);
+    renderNode(STORY.start);
     await saveNow(false);
     closeModal();
     toast('进度已清空');
@@ -370,27 +406,31 @@
     beginGame(loadedState, 'guest', '本地玩家');
   }
 
-  async function enterCloud(username) {
+  async function enterCloud(username, role) {
     const row = await Cloud.loadGame();
+    const realRole = (row && row.role) || role || 'player';
 
     if (row && row.save && Object.keys(row.save).length > 0) {
-      beginGame(migrate(row.save), 'cloud', username);
+      beginGame(migrate(row.save), 'cloud', username, realRole);
       return;
     }
 
     const initial = newState();
     await Cloud.saveGame(initial);
-    beginGame(initial, 'cloud', username);
+    beginGame(initial, 'cloud', username, realRole);
   }
 
-  function beginGame(initialState, nextMode, name) {
+  function beginGame(initialState, nextMode, name, role) {
     state = migrate(initialState);
     mode = nextMode;
     cloudName = name;
+    cloudRole = role || 'player';
 
     authScreen.hidden = true;
     gameScreen.hidden = false;
-    userTag.textContent = mode === 'cloud' ? name : '本地试玩';
+    userTag.textContent = mode === 'cloud'
+      ? name + (cloudRole === 'admin' ? ' · 管理员' : '')
+      : '本地试玩';
 
     renderNode(state.node);
     dirty = false;
@@ -414,10 +454,10 @@
     modalTitle.textContent = '结局图鉴';
     const unlocked = state ? state.endings.length : 0;
     let html = '<section class="modal-section">' +
-      '<p class="setting-hint">已解锁 ' + unlocked + ' / ' + STORY.ENDINGS.length + '</p>' +
+      '<p class="setting-hint">已解锁 ' + unlocked + ' / ' + STORY.endings.length + '</p>' +
       '<ul class="ending-list">';
 
-    STORY.ENDINGS.forEach(function (ending) {
+    STORY.endings.forEach(function (ending) {
       const has = state && state.endings.indexOf(ending.id) !== -1;
       html += '<li class="ending-item' + (has ? '' : ' locked') + '">' +
         '<span class="ending-name">' + (has ? escapeHtml(ending.title) : '？？？') + '</span>' +
@@ -437,6 +477,7 @@
         '<h3>账号</h3>' +
         '<div class="setting-row"><span>模式</span><span>' + (isCloud ? '云端账号' : '本地试玩') + '</span></div>' +
         '<div class="setting-row"><span>账号名</span><span>' + escapeHtml(isCloud ? cloudName : '本地玩家') + '</span></div>' +
+        '<div class="setting-row"><span>权限</span><span>' + (cloudRole === 'admin' ? '管理员' : '玩家') + '</span></div>' +
       '</section>' +
       '<section class="modal-section">' +
         '<h3>进度</h3>' +
@@ -444,6 +485,16 @@
         '<button type="button" class="btn-secondary" data-action="restart">重新开始本轮</button>' +
         '<button type="button" class="btn-secondary danger" data-action="reset">清除全部进度</button>' +
         (isCloud ? '<button type="button" class="btn-secondary" id="logoutBtn">退出登录</button>' : '') +
+      '</section>' +
+      '<section class="modal-section">' +
+        '<h3>剧情内容</h3>' +
+        '<div class="setting-row"><span>来源</span><span>' +
+          (storySource === 'cloud' ? '云端 v' + storyVersion : '内置剧情') +
+        '</span></div>' +
+        (cloudRole === 'admin'
+          ? '<p class="setting-hint">你是管理员，可以直接编辑剧情、上传配图并发布。</p>' +
+            '<button type="button" class="btn-secondary" data-action="editor">打开剧情编辑器</button>'
+          : '<p class="setting-hint">剧情由管理员维护。</p>') +
       '</section>';
     modalBody.scrollTop = 0;
   }
@@ -505,7 +556,7 @@
       const name = authMode === 'register'
         ? await Cloud.register(username.toLowerCase(), password)
         : await Cloud.login(username.toLowerCase(), password);
-      await enterCloud(name);
+      await enterCloud(name, Cloud.role);
     } catch (err) {
       authError.textContent = authMessage(err);
     } finally {
@@ -548,11 +599,16 @@
           closeModal();
         } else if (actionBtn.dataset.action === 'reset') {
           resetSave();
+        } else if (actionBtn.dataset.action === 'editor') {
+          closeModal();
+          if (window.Editor) window.Editor.open();
         }
         return;
       }
       if (event.target.closest('#logoutBtn')) logoutCloud();
     });
+
+    previewExit.addEventListener('click', endPreview);
 
     document.addEventListener('visibilitychange', function () {
       if (document.hidden && dirty) saveNow(false);
@@ -562,11 +618,98 @@
     });
   }
 
+  /* ---------------- 剧情预览与对外接口 ---------------- */
+
+  function startPreview(nextStory, onExit) {
+    if (!nextStory || !nextStory.nodes || !nextStory.nodes[nextStory.start]) {
+      toast('草稿起点节点无效，无法试玩');
+      return;
+    }
+    if (!state) return;
+
+    previewBackup = {
+      story: STORY,
+      version: storyVersion,
+      source: storySource,
+      state: JSON.parse(JSON.stringify(state))
+    };
+    previewing = true;
+    previewExitCallback = onExit || null;
+
+    STORY = nextStory;
+    storyVersion = 0;
+    storySource = 'draft';
+    state = newState();
+
+    previewBar.hidden = false;
+    authScreen.hidden = true;
+    gameScreen.hidden = false;
+    renderNode(state.node);
+    dirty = false;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  function endPreview() {
+    if (!previewing) return;
+
+    const callback = previewExitCallback;
+
+    previewing = false;
+    STORY = previewBackup.story;
+    storyVersion = previewBackup.version;
+    storySource = previewBackup.source;
+    state = previewBackup.state;
+    previewBackup = null;
+    previewExitCallback = null;
+    previewBar.hidden = true;
+
+    renderNode(state.node);
+    dirty = false;
+
+    if (callback) callback();
+  }
+
+  function applyPublishedStory(story, version) {
+    if (!story || !story.nodes || !story.nodes[story.start]) return;
+
+    STORY = story;
+    storyVersion = version || storyVersion;
+    storySource = 'cloud';
+
+    if (!state) return;
+    if (!STORY.nodes[state.node]) state.node = STORY.start;
+    if (Array.isArray(state.endings) && Array.isArray(STORY.endings)) {
+      state.endings = state.endings.filter(function (id) {
+        return STORY.endings.some(function (ending) { return ending.id === id; });
+      });
+    }
+    renderNode(state.node);
+    dirty = false;
+  }
+
+  window.Game = {
+    story: function () { return STORY; },
+    storyVersion: function () { return storyVersion; },
+    storySource: function () { return storySource; },
+    role: function () { return cloudRole; },
+    api: function (path, options) { return Cloud.api(path, options); },
+    uploadImage: function (file) { return Cloud.uploadImage(file); },
+    preview: startPreview,
+    endPreview: endPreview,
+    applyPublishedStory: applyPublishedStory,
+    toast: toast
+  };
+
   /* ---------------- 启动 ---------------- */
 
   async function init() {
     bindEvents();
     setAuthMode('login');
+
+    const loadedStory = await window.StoryStore.load();
+    STORY = loadedStory.story;
+    storyVersion = loadedStory.version;
+    storySource = loadedStory.source;
 
     const cloudAvailable = await Cloud.detect();
     if (!cloudAvailable) {
@@ -582,7 +725,7 @@
     setAuthBusy(true);
     try {
       const row = await Cloud.loadGame();
-      await enterCloud(row.username || '玩家');
+      await enterCloud(row.username || '玩家', row.role);
     } catch (err) {
       if (err && err.status === 401) {
         Cloud.setToken(null);

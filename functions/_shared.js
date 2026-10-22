@@ -48,6 +48,17 @@ export function isValidUsername(username) {
   return /^[a-z0-9_]{3,16}$/.test(username);
 }
 
+// 管理员由环境变量 ADMIN_USERNAME 指定，账号匹配即拥有编辑权限
+export function roleOf(user, env) {
+  const adminName = String((env && env.ADMIN_USERNAME) || '').trim().toLowerCase();
+  if (!adminName || !user || !user.username) return 'player';
+  return String(user.username).toLowerCase() === adminName ? 'admin' : 'player';
+}
+
+export function isAdmin(user, env) {
+  return roleOf(user, env) === 'admin';
+}
+
 // 从 Authorization: Bearer <token> 解析出登录用户，无效或过期返回 null
 export async function getAuthUser(request, env) {
   const header = request.headers.get('Authorization') || '';
@@ -75,4 +86,11 @@ export async function createSession(env, userId) {
     .bind(tokenHash, userId, Date.now() + SESSION_TTL_MS)
     .run();
   return token;
+}
+
+// 管理员接口统一入口：未登录、非管理员都返回 401
+export async function requireAdmin(request, env) {
+  const user = await getAuthUser(request, env);
+  if (!user || !isAdmin(user, env)) return null;
+  return user;
 }

@@ -1,5 +1,5 @@
 // 读取存档：返回存档、上次保存时间、服务器当前时间（用于离线收益结算）
-import { json, getAuthUser } from '../_shared.js';
+import { json, getAuthUser, roleOf } from '../_shared.js';
 
 export async function onRequestGet({ request, env }) {
   const user = await getAuthUser(request, env);
@@ -18,6 +18,7 @@ export async function onRequestGet({ request, env }) {
 
   return json({
     username: user.username,
+    role: roleOf(user, env),
     save,
     last_seen: user.last_seen,
     server_now: Date.now()

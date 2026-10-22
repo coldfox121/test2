@@ -1,0 +1,16 @@
+name = "test2"
+compatibility_date = "2026-10-22"
+pages_build_output_dir = "public"
+
+[vars]
+ADMIN_USERNAME = "admin"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "test2-db"
+database_id = "e9044001-5aa5-4220-a63a-ed04c8fa6cd0"
+
+# R2 需先在 Cloudflare 控制台开通，开通后再启用以下绑定
+# [[r2_buckets]]
+# binding = "IMAGES"
+# bucket_name = "test2-images"

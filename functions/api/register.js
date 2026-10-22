@@ -1,5 +1,5 @@
 // 注册：用户名 + 密码，创建账号并直接返回登录态
-import { json, randomHex, hashPassword, isValidUsername, createSession } from '../_shared.js';
+import { json, randomHex, hashPassword, isValidUsername, createSession, roleOf } from '../_shared.js';
 
 export async function onRequestPost({ request, env }) {
   let body;
@@ -33,5 +33,5 @@ export async function onRequestPost({ request, env }) {
   ).bind(id, username, passHash, salt, '', null, Date.now()).run();
 
   const token = await createSession(env, id);
-  return json({ token, username });
+  return json({ token, username, role: roleOf({ username }, env) });
 }

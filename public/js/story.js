@@ -272,9 +272,9 @@
   ];
 
   window.STORY = {
-    START: 'start',
-    SCENES: SCENES,
-    NODES: NODES,
-    ENDINGS: ENDINGS
+    start: 'start',
+    scenes: SCENES,
+    nodes: NODES,
+    endings: ENDINGS
   };
 })();

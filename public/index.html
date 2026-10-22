@@ -60,6 +60,11 @@
 
   <!-- 主游戏界面（唯一常驻页面） -->
   <div id="gameScreen" class="game-screen" hidden>
+    <div id="previewBar" class="preview-bar" hidden>
+      <span>草稿试玩中 · 本次进度不会保存</span>
+      <button id="previewExit" type="button" class="btn-secondary">退出试玩</button>
+    </div>
+
     <header class="topbar">
       <div class="brand">
         <span class="brand-name">雾亭站</span>
@@ -103,9 +108,47 @@
     </div>
   </div>
 
+  <!-- 剧情编辑器（仅管理员可见） -->
+  <div id="editorLayer" class="editor-layer" hidden>
+    <div class="editor-shell" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+      <header class="editor-head">
+        <div class="editor-title">
+          <h2 id="editorTitle">剧情编辑器</h2>
+          <span id="editorMeta" class="editor-meta"></span>
+        </div>
+        <div class="editor-head-actions">
+          <button id="edSave" type="button" class="btn-secondary">保存草稿</button>
+          <button id="edPreview" type="button" class="btn-secondary">试玩草稿</button>
+          <button id="edPublish" type="button" class="btn-secondary accent">发布</button>
+          <button id="edClose" type="button" class="modal-close" aria-label="关闭编辑器">×</button>
+        </div>
+      </header>
+
+      <nav id="edTabs" class="editor-tabs" aria-label="编辑器分区">
+        <button type="button" data-tab="nodes" class="active">剧情节点</button>
+        <button type="button" data-tab="scenes">场景配图</button>
+        <button type="button" data-tab="endings">结局</button>
+        <button type="button" data-tab="check">校验</button>
+        <button type="button" data-tab="versions">版本</button>
+      </nav>
+
+      <div class="editor-body">
+        <aside id="edSide" class="editor-side"></aside>
+        <main id="edMain" class="editor-main"></main>
+      </div>
+
+      <footer class="editor-foot">
+        <span id="edStatus">就绪</span>
+        <span id="edDirty"></span>
+      </footer>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="js/story.js?v=1"></script>
-  <script src="js/app.js?v=2"></script>
+  <script src="js/story-store.js?v=1"></script>
+  <script src="js/editor.js?v=1"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>
