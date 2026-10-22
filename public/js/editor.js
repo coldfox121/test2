@@ -249,7 +249,7 @@
     const tag = document.createElement('span');
     tag.className = 'ed-fp-tag' + (neg ? ' neg' : '');
     tag.dataset.v = value;
-    tag.innerHTML = escapeHtml(label) + '<button type="button" class="ed-fp-x" aria-label="删除">×</button>';
+    tag.innerHTML = esc(label) + '<button type="button" class="ed-fp-x" aria-label="删除">×</button>';
     container.querySelector('.ed-fp-tags').insertBefore(tag, input);
     input.value = '';
     markDirtyFromPicker(container);
