@@ -358,9 +358,9 @@
           '<span class="ed-hint">用空行分段。</span>' +
         '</label>' +
 
-        '<label class="ed-field">设置旗标 set' +
-          '<input class="ed-input" data-nf="set" value="' + esc(flagsToText(node.set)) + '" placeholder="用逗号分隔，例如 hasKey, metGirl">' +
-          '<span class="ed-hint">进入该节点时把列出的旗标设为 true。</span>' +
+        '<label class="ed-field">进入时设置旗标' +
+          '<input class="ed-input" data-nf="set" value="' + esc(flagsToText(node.set)) + '" placeholder="逗号分隔，例如 hasKey, metGirl">' +
+          '<span class="ed-hint">旗标是剧情的状态开关（如「拿到了钥匙」）。进入这个节点时，这里列出的旗标会被记为 true，后面的选项可以用它判断是否解锁。</span>' +
         '</label>' +
 
         '<label class="ed-check">' +
@@ -408,9 +408,9 @@
     const branchRows = isBranch
       ? choice.next.map(function (branch, branchIndex) {
           return '<div class="ed-branch">' +
-            '<label class="ed-field">条件 req' +
+            '<label class="ed-field">分支条件' +
               '<input class="ed-input" data-bf="req" data-i="' + index + '" data-bi="' + branchIndex +
-              '" value="' + esc(listToText(branch.req)) + '" placeholder="留空 = 默认分支">' +
+              '" value="' + esc(listToText(branch.req)) + '" placeholder="留空 = 默认分支（兜底）">' +
             '</label>' +
             '<label class="ed-field">跳转到' +
               nodeSelect(branch.next, 'class="ed-input" data-bf="next" data-i="' + index + '" data-bi="' + branchIndex + '"') +
@@ -438,7 +438,7 @@
             '<option value="branch"' + (isBranch ? ' selected' : '') + '>条件分支</option>' +
           '</select>' +
         '</label>' +
-        '<label class="ed-field">设置旗标 set' +
+        '<label class="ed-field">选中时设置旗标' +
           '<input class="ed-input" data-cf="set" data-i="' + index + '" value="' + esc(flagsToText(choice.set)) + '">' +
         '</label>' +
       '</div>' +
@@ -452,18 +452,18 @@
           '</label>') +
 
       '<div class="ed-grid2">' +
-        '<label class="ed-field">可用条件 req' +
+        '<label class="ed-field">解锁条件' +
           '<input class="ed-input" data-cf="req" data-i="' + index + '" value="' + esc(listToText(choice.req)) +
-          '" placeholder="不满足则显示为锁定">' +
+          '" placeholder="旗标名，逗号分隔；不满足则选项变灰">' +
         '</label>' +
-        '<label class="ed-field">显示条件 hideUnless' +
+        '<label class="ed-field">出现条件' +
           '<input class="ed-input" data-cf="hideUnless" data-i="' + index + '" value="' + esc(listToText(choice.hideUnless)) +
-          '" placeholder="支持 !flag">' +
+          '" placeholder="旗标名，逗号分隔；不满足则不显示">' +
         '</label>' +
       '</div>' +
 
-      '<label class="ed-field">锁定提示 lock' +
-        '<input class="ed-input" data-cf="lock" data-i="' + index + '" value="' + esc(choice.lock || '') + '">' +
+      '<label class="ed-field">锁定时提示文字' +
+        '<input class="ed-input" data-cf="lock" data-i="' + index + '" value="' + esc(choice.lock || '') + '" placeholder="例如：需要一把钥匙">' +
       '</label>' +
     '</div>';
   }
@@ -739,7 +739,7 @@
             }
           });
         } else {
-          err(choiceLabel + ' 缺少跳转目标 next', 'nodes', id);
+          err(choiceLabel + ' 缺少跳转目标', 'nodes', id);
         }
       });
     });
