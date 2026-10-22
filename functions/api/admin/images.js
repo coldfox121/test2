@@ -1,9 +1,9 @@
 // 管理员上传剧情配图到 KV，返回可直接访问的站内地址
 import { json, requireAdmin } from '../../_shared.js';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-// 只认常见位图格式，同时按文件头校验，避免伪装成图片的文件进入 R2
+// 只认常见位图格式，同时按文件头校验，避免伪装成图片的文件进入 KV
 function imageExt(bytes) {
   if (bytes.length < 12) return null;
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg';
@@ -42,7 +42,7 @@ export async function onRequestPost({ request, env }) {
 
   const buffer = await file.arrayBuffer();
   if (buffer.byteLength === 0) return json({ error: '图片是空文件' }, 400);
-  if (buffer.byteLength > MAX_IMAGE_BYTES) return json({ error: '图片不能超过 5MB' }, 400);
+  if (buffer.byteLength > MAX_IMAGE_BYTES) return json({ error: '图片不能超过 10MB' }, 400);
 
   const bytes = new Uint8Array(buffer);
   const ext = imageExt(bytes);

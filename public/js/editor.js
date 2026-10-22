@@ -504,7 +504,7 @@
         '<label class="btn-secondary upload-label">上传图片' +
           '<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-act="upload-scene" hidden>' +
         '</label>' +
-        '<span class="ed-hint">支持 JPG / PNG / WebP / GIF，单张不超过 5MB。</span>' +
+        '<span class="ed-hint">支持 JPG / PNG / WebP / GIF，单张不超过 10MB。</span>' +
       '</div>' +
 
       '<p class="ed-hint">被 ' + used.length + ' 个节点使用' +
