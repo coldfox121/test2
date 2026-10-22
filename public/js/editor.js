@@ -13,6 +13,7 @@
   let dirtyEl;
   let tabsEl;
   let themeEl;
+  let fontEl;
 
   let draft = null;
   let meta = {};
@@ -121,6 +122,157 @@
     return list.length ? list : undefined;
   }
 
+  /* 扫描整份草稿里所有出现过的旗标名：被设置过的 + 被条件引用过的 */
+  function collectAllFlags() {
+    const set = new Set();
+    const add = function (list) {
+      if (!Array.isArray(list)) return;
+      list.forEach(function (v) { if (typeof v === 'string') { const k = v[0] === '!' ? v.slice(1) : v; if (k) set.add(k); } });
+    };
+    (draft && draft.nodes ? Object.keys(draft.nodes) : []).forEach(function (id) {
+      const node = draft.nodes[id];
+      if (node.set && typeof node.set === 'object') Object.keys(node.set).forEach(function (k) { set.add(k); });
+      add(node.req);
+      add(node.hideUnless);
+      (node.choices || []).forEach(function (c) {
+        if (c.set && typeof c.set === 'object') Object.keys(c.set).forEach(function (k) { set.add(k); });
+        add(c.req);
+        add(c.hideUnless);
+        if (Array.isArray(c.next)) c.next.forEach(function (b) { add(b.req); });
+      });
+    });
+    return Array.from(set).sort();
+  }
+
+  /* set 类型（对象）转数组；数组/undefined 不变 */
+  function setToList(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'object') return Object.keys(value).filter(function (k) { return value[k]; });
+    return [];
+  }
+
+  /* 数组转回 set 格式（对象），空则 undefined */
+  function listToSet(list) {
+    if (!list || !list.length) return undefined;
+    const obj = {};
+    list.forEach(function (k) { if (typeof k === 'string' && k[0] !== '!') obj[k] = true; });
+    // 取反项不出现在 set 里（set 只存正向）
+    return Object.keys(obj).length ? obj : undefined;
+  }
+
+  /* 把数组 ['a', '!b'] 渲染成标签组件 */
+  function flagPickerHtml(value, attrs) {
+    const list = Array.isArray(value) ? value : (value ? [value] : []);
+    const tags = list.map(function (v) {
+      const neg = typeof v === 'string' && v[0] === '!';
+      const label = neg ? ('非 ' + v.slice(1)) : v;
+      return '<span class="ed-fp-tag' + (neg ? ' neg' : '') + '" data-v="' + esc(v) + '">' +
+        esc(label) + '<button type="button" class="ed-fp-x" aria-label="删除">×</button></span>';
+    }).join('');
+    return '<div class="ed-flag-picker" ' + (attrs || '') + '>' +
+      '<div class="ed-fp-tags">' + tags +
+        '<input type="text" class="ed-fp-input" placeholder="' + (tags ? '继续添加…' : '点击选择旗标…') + '">' +
+      '</div>' +
+      '<div class="ed-fp-dropdown" hidden></div>' +
+    '</div>';
+  }
+
+  function renderFlagPickerDropdown(container, known, currentList, query) {
+    const drop = container.querySelector('.ed-fp-dropdown');
+    const q = String(query || '').trim().toLowerCase();
+    const curSet = new Set((currentList || []).map(function (v) { return String(v); }));
+    // 过滤掉已选的 + 按 query 过滤
+    const pos = known.filter(function (k) {
+      if (curSet.has(k)) return false;
+      return !q || k.toLowerCase().indexOf(q) !== -1;
+    });
+    const neg = pos.slice(); // 取反候选同上
+    let html = '';
+    if (!known.length) {
+      html += '<div class="ed-fp-empty">还没有任何旗标可用。先去节点或选项里「设置旗标」。</div>';
+    } else if (!pos.length) {
+      html += '<div class="ed-fp-empty">全部已选，或者没有匹配。</div>';
+    } else {
+      html += '<div class="ed-fp-group"><div class="ed-fp-group-title">满足（正向）</div>' +
+        pos.map(function (k) { return '<button type="button" class="ed-fp-item" data-v="' + esc(k) + '">' + esc(k) + '</button>'; }).join('') +
+      '</div>';
+      html += '<div class="ed-fp-group"><div class="ed-fp-group-title">未满足（取反）</div>' +
+        neg.map(function (k) { return '<button type="button" class="ed-fp-item neg" data-v="!' + esc(k) + '">非 ' + esc(k) + '</button>'; }).join('') +
+      '</div>';
+    }
+    drop.innerHTML = html;
+    drop.hidden = false;
+  }
+
+  /* 从 picker DOM 读当前值数组 */
+  function flagPickerValues(container) {
+    if (!container) return undefined;
+    const list = Array.from(container.querySelectorAll('.ed-fp-tag')).map(function (tag) {
+      return tag.dataset.v;
+    });
+    return list.length ? list : undefined;
+  }
+
+  /* 把旗标值加进 picker DOM（去重，保持顺序），输入框清空 */
+  function flagPickerAdd(container, value) {
+    const input = container.querySelector('.ed-fp-input');
+    const cur = flagPickerValues(container) || [];
+    if (!value) return;
+    if (cur.indexOf(value) !== -1) { input.value = ''; return; }
+    const neg = value[0] === '!';
+    const label = neg ? ('非 ' + value.slice(1)) : value;
+    const tag = document.createElement('span');
+    tag.className = 'ed-fp-tag' + (neg ? ' neg' : '');
+    tag.dataset.v = value;
+    tag.innerHTML = escapeHtml(label) + '<button type="button" class="ed-fp-x" aria-label="删除">×</button>';
+    container.querySelector('.ed-fp-tags').insertBefore(tag, input);
+    input.value = '';
+    markDirtyFromPicker(container);
+  }
+
+  function flagPickerRemove(container, value) {
+    const tag = container.querySelector('.ed-fp-tag[data-v="' + value.replace(/"/g, '\\"') + '"]');
+    if (tag) tag.remove();
+    markDirtyFromPicker(container);
+  }
+
+  /* picker 变化后写回草稿对应字段 */
+  function markDirtyFromPicker(container) {
+    const i = Number(container.dataset.i);
+    if (container.dataset.nfPicker === 'set') {
+      // node.set
+      const node = draft.nodes[selectedNode];
+      if (!node) return;
+      node.set = listToSet(flagPickerValues(container));
+      markDirty();
+      return;
+    }
+    if (container.dataset.cfSet !== undefined) {
+      // choice.set（没有值，只要属性存在）
+      const choice = ((draft.nodes[selectedNode] || {}).choices || [])[i];
+      if (!choice) return;
+      choice.set = listToSet(flagPickerValues(container));
+      markDirty();
+      return;
+    }
+    if (container.dataset.cf === 'req' || container.dataset.cf === 'hideUnless') {
+      const choice = ((draft.nodes[selectedNode] || {}).choices || [])[i];
+      if (!choice) return;
+      choice[container.dataset.cf] = flagPickerValues(container);
+      markDirty();
+      return;
+    }
+    if (container.dataset.bf === 'req') {
+      const bi = Number(container.dataset.bi);
+      const choice = draft.nodes[selectedNode].choices[i];
+      const branch = choice && Array.isArray(choice.next) ? choice.next[bi] : null;
+      if (!branch) return;
+      branch.req = flagPickerValues(container);
+      markDirty();
+    }
+  }
+
   function sceneUsage(key) {
     return nodeIds().filter(function (id) {
       return draft.nodes[id].scene === key;
@@ -170,6 +322,7 @@
 
       selectedNode = draft.start;
       if (!draft.theme) draft.theme = 'amber';
+      if (!draft.font) draft.font = 'default';
       selectedScene = sceneKeys()[0] || null;
       selectedEnding = draft.endings[0] ? draft.endings[0].id : null;
       nodeFilter = '';
@@ -206,12 +359,28 @@
     renderSide();
     renderMain();
     renderTheme();
+    renderFont();
     updateDirtyLabel();
   }
 
   function renderTheme() {
     if (!themeEl || !window.Theme) return;
     themeEl.innerHTML = window.Theme.markup(draft.theme || 'amber', 'data-game-theme');
+  }
+
+  function renderFont() {
+    if (!fontEl) return;
+    const opts = [
+      { id: 'default', label: '默认系统' },
+      { id: 'serif',   label: '衬线（宋体）' },
+      { id: 'sans',    label: '无衬线' },
+      { id: 'mono',    label: '等宽' },
+      { id: 'hand',    label: '手写' }
+    ];
+    const cur = (draft && draft.font) || 'default';
+    fontEl.innerHTML = opts.map(function (o) {
+      return '<option value="' + o.id + '"' + (o.id === cur ? ' selected' : '') + '>' + o.label + '</option>';
+    }).join('');
   }
 
   function renderSide() {
@@ -362,14 +531,25 @@
         '<div class="ed-scene-preview"><img id="edScenePreview" src="' + esc(sceneUrl) + '" alt=""></div>' +
 
         '<label class="ed-field">正文' +
+          '<div class="ed-toolbar" data-for="text">' +
+            '<button type="button" class="ed-tb-btn" data-wrap="**">B</button>' +
+            '<button type="button" class="ed-tb-btn" data-wrap="*">I</button>' +
+            '<button type="button" class="ed-tb-btn" data-wrap="~~">S</button>' +
+            '<span class="ed-tb-sep"></span>' +
+            '<button type="button" class="ed-tb-btn" data-tag="accent">亮</button>' +
+            '<button type="button" class="ed-tb-btn" data-tag="muted">中</button>' +
+            '<button type="button" class="ed-tb-btn" data-tag="faint">淡</button>' +
+            '<button type="button" class="ed-tb-btn ed-tb-danger" data-tag="danger">危</button>' +
+          '</div>' +
           '<textarea id="edNodeText" class="ed-input" rows="10" data-nf="text">' + esc(node.text || '') + '</textarea>' +
-          '<span class="ed-hint">用空行分段。</span>' +
+          '<span class="ed-hint">空行分段。支持 **粗体**、*斜体*、~~删除线~~；颜色写 [accent]亮[/] / [muted]中[/] / [faint]淡[/] / [danger]危[/]。</span>' +
         '</label>' +
 
-        '<label class="ed-field">进入时设置旗标' +
-          '<input class="ed-input" data-nf="set" value="' + esc(flagsToText(node.set)) + '" placeholder="逗号分隔，例如 hasKey, metGirl">' +
-          '<span class="ed-hint">旗标是剧情的状态开关（如「拿到了钥匙」）。进入这个节点时，这里列出的旗标会被记为 true，后面的选项可以用它判断是否解锁。</span>' +
-        '</label>' +
+        '<div class="ed-field">' +
+          '<div class="ed-label">进入时设置旗标</div>' +
+          flagPickerHtml(setToList(node.set), 'data-nf-picker="set"') +
+          '<span class="ed-hint">进入这个节点时，这里列出的旗标会被记为 true，后面的选项可以用它判断是否解锁。下拉里选或打字回车新建。</span>' +
+        '</div>' +
 
         '<label class="ed-check">' +
           '<input type="checkbox" data-act="toggle-ending"' + (isEnding ? ' checked' : '') + '>' +
@@ -417,8 +597,8 @@
       ? choice.next.map(function (branch, branchIndex) {
           return '<div class="ed-branch">' +
             '<label class="ed-field">分支条件' +
-              '<input class="ed-input" data-bf="req" data-i="' + index + '" data-bi="' + branchIndex +
-              '" value="' + esc(listToText(branch.req)) + '" placeholder="留空 = 默认分支（兜底）">' +
+              flagPickerHtml(branch.req, 'data-bf="req" data-i="' + index + '" data-bi="' + branchIndex + '"') +
+              '<span class="ed-fp-tip">留空 = 兜底分支，所有条件都不满足时走这里</span>' +
             '</label>' +
             '<label class="ed-field">跳转到' +
               nodeSelect(branch.next, 'class="ed-input" data-bf="next" data-i="' + index + '" data-bi="' + branchIndex + '"') +
@@ -446,9 +626,10 @@
             '<option value="branch"' + (isBranch ? ' selected' : '') + '>条件分支</option>' +
           '</select>' +
         '</label>' +
-        '<label class="ed-field">选中时设置旗标' +
-          '<input class="ed-input" data-cf="set" data-i="' + index + '" value="' + esc(flagsToText(choice.set)) + '">' +
-        '</label>' +
+        '<div class="ed-field">' +
+          '<div class="ed-label">选中时设置旗标</div>' +
+          flagPickerHtml(setToList(choice.set), 'data-cf-set data-i="' + index + '"') +
+        '</div>' +
       '</div>' +
 
       (isBranch
@@ -461,12 +642,12 @@
 
       '<div class="ed-grid2">' +
         '<label class="ed-field">解锁条件' +
-          '<input class="ed-input" data-cf="req" data-i="' + index + '" value="' + esc(listToText(choice.req)) +
-          '" placeholder="旗标名，逗号分隔；不满足则选项变灰">' +
+          flagPickerHtml(choice.req, 'data-cf="req" data-i="' + index + '"') +
+          '<span class="ed-fp-tip">不满足则选项变灰，提示看下方</span>' +
         '</label>' +
         '<label class="ed-field">出现条件' +
-          '<input class="ed-input" data-cf="hideUnless" data-i="' + index + '" value="' + esc(listToText(choice.hideUnless)) +
-          '" placeholder="旗标名，逗号分隔；不满足则不显示">' +
+          flagPickerHtml(choice.hideUnless, 'data-cf="hideUnless" data-i="' + index + '"') +
+          '<span class="ed-fp-tip">不满足则选项直接不显示</span>' +
         '</label>' +
       '</div>' +
 
@@ -1110,6 +1291,7 @@
       dirty = true;
       selectedNode = draft.start;
       if (!draft.theme) draft.theme = 'amber';
+      if (!draft.font) draft.font = 'default';
       selectedScene = sceneKeys()[0] || null;
       selectedEnding = draft.endings[0] ? draft.endings[0].id : null;
       tab = 'nodes';
@@ -1146,6 +1328,14 @@
       markDirty();
       renderTheme();
     });
+
+    if (fontEl) {
+      fontEl.addEventListener('change', function () {
+        if (!draft) return;
+        draft.font = fontEl.value;
+        markDirty();
+      });
+    }
 
     side.addEventListener('click', function (event) {
       const node = event.target.closest('[data-node]');
@@ -1201,6 +1391,58 @@
     main.addEventListener('change', onMainChange);
     main.addEventListener('click', onMainClick);
 
+    /* ---- 旗标选择器：focus/input/keydown/click-item/click-x ---- */
+    main.addEventListener('focusin', function (event) {
+      const input = event.target.closest('.ed-fp-input');
+      if (!input) return;
+      const picker = input.closest('.ed-flag-picker');
+      if (!picker) return;
+      // 关掉所有其他下拉，打开当前
+      main.querySelectorAll('.ed-fp-dropdown').forEach(function (d) { d.hidden = true; });
+      const known = collectAllFlags();
+      renderFlagPickerDropdown(picker, known, flagPickerValues(picker), input.value);
+    });
+
+    main.addEventListener('input', function (event) {
+      const input = event.target.closest('.ed-fp-input');
+      if (!input) return;
+      const picker = input.closest('.ed-flag-picker');
+      if (!picker) return;
+      renderFlagPickerDropdown(picker, collectAllFlags(), flagPickerValues(picker), input.value);
+    });
+
+    main.addEventListener('keydown', function (event) {
+      const input = event.target.closest('.ed-fp-input');
+      if (!input) return;
+      const picker = input.closest('.ed-flag-picker');
+      if (!picker) return;
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const v = input.value.trim();
+        if (v) flagPickerAdd(picker, v);
+      } else if (event.key === 'Backspace' && !input.value) {
+        // 空输入时退格删最后一个 tag
+        const tags = picker.querySelectorAll('.ed-fp-tag');
+        if (tags.length) flagPickerRemove(picker, tags[tags.length - 1].dataset.v);
+      } else if (event.key === 'Escape') {
+        picker.querySelector('.ed-fp-dropdown').hidden = true;
+        input.blur();
+      }
+    });
+
+    // 点击 picker 内部的 item（下拉选项）或 tag 上的 ×
+    document.addEventListener('click', function (event) {
+      // 点击下拉外关闭
+      const anyDrop = event.target.closest('.ed-fp-dropdown');
+      const anyPicker = event.target.closest('.ed-flag-picker');
+      if (!anyPicker || (anyPicker && anyDrop)) {
+        // 点击了下拉项本身，让下面的 main click 处理；否则如果点的是下拉外、也不在 picker 内，全部关
+        if (!anyPicker) {
+          document.querySelectorAll('.ed-fp-dropdown').forEach(function (d) { d.hidden = true; });
+        }
+      }
+    });
+
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && layer && !layer.hidden) close();
     });
@@ -1218,11 +1460,6 @@
 
     if (target.dataset.nf === 'text') {
       draft.nodes[selectedNode].text = target.value;
-      markDirty();
-      return;
-    }
-    if (target.dataset.nf === 'set') {
-      draft.nodes[selectedNode].set = parseFlags(target.value);
       markDirty();
       return;
     }
@@ -1261,10 +1498,10 @@
       const field = target.dataset.cf;
       if (field === 'text') choice.text = target.value;
       else if (field === 'lock') choice.lock = target.value || undefined;
-      else if (field === 'set') choice.set = parseFlags(target.value);
-      else if (field === 'req') choice.req = parseList(target.value);
-      else if (field === 'hideUnless') choice.hideUnless = parseList(target.value);
       else if (field === 'next') choice.next = target.value;
+      else if (field === 'req' || field === 'hideUnless') {
+        choice[field] = flagPickerValues(target.closest('.ed-flag-picker'));
+      }
       markDirty();
       return;
     }
@@ -1275,8 +1512,8 @@
       const choice = ((draft.nodes[selectedNode] || {}).choices || [])[index];
       const branch = choice && Array.isArray(choice.next) ? choice.next[branchIndex] : null;
       if (!branch) return;
-      if (target.dataset.bf === 'req') branch.req = parseList(target.value);
-      else if (target.dataset.bf === 'next') branch.next = target.value;
+      if (target.dataset.bf === 'next') branch.next = target.value;
+      else if (target.dataset.bf === 'req') branch.req = flagPickerValues(target.closest('.ed-flag-picker'));
       markDirty();
     }
   }
@@ -1366,6 +1603,57 @@
   }
 
   function onMainClick(event) {
+    // 旗标下拉项 → 加到 picker
+    const fpItem = event.target.closest('.ed-fp-item');
+    if (fpItem) {
+      const picker = event.target.closest('.ed-flag-picker');
+      if (picker) {
+        flagPickerAdd(picker, fpItem.dataset.v);
+        picker.querySelector('.ed-fp-input').focus();
+        renderFlagPickerDropdown(picker, collectAllFlags(), flagPickerValues(picker), picker.querySelector('.ed-fp-input').value);
+      }
+      return;
+    }
+
+    // tag 上的 × → 从 picker 移除
+    const fpX = event.target.closest('.ed-fp-x');
+    if (fpX) {
+      const picker = event.target.closest('.ed-flag-picker');
+      if (picker) flagPickerRemove(picker, fpX.dataset.v);
+      return;
+    }
+
+    // 正文工具栏：插入格式占位符
+    const tbBtn = event.target.closest('.ed-tb-btn');
+    if (tbBtn) {
+      const textarea = main.querySelector('#edNodeText');
+      if (textarea && selectedNode) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const cur = textarea.value;
+        const sel = cur.slice(start, end) || '文字';
+        let inserted;
+        if (tbBtn.dataset.wrap) {
+          const w = tbBtn.dataset.wrap;
+          inserted = w + sel + w;
+        } else if (tbBtn.dataset.tag) {
+          inserted = '[' + tbBtn.dataset.tag + ']' + sel + '[/]';
+        }
+        if (inserted !== undefined) {
+          textarea.value = cur.slice(0, start) + inserted + cur.slice(end);
+          draft.nodes[selectedNode].text = textarea.value;
+          markDirty();
+          // 光标移到中间
+          requestAnimationFrame(function () {
+            textarea.focus();
+            const m = start + inserted.length - sel.length;
+            textarea.setSelectionRange(m, m);
+          });
+        }
+      }
+      return;
+    }
+
     const target = event.target.closest('[data-act]');
     if (!target) return;
     const action = target.dataset.act;
@@ -1429,6 +1717,7 @@
     dirtyEl = document.getElementById('edDirty');
     tabsEl = document.getElementById('edTabs');
     themeEl = document.getElementById('edTheme');
+    fontEl = document.getElementById('edFont');
     bind();
     updateDirtyLabel();
   }
