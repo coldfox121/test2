@@ -154,7 +154,7 @@
     setStatus('加载草稿…');
 
     try {
-      const data = await window.Game.api('admin/story');
+      const data = await window.Game.api('story');
       meta = data || {};
 
       if (data && data.draft && data.draft.nodes && data.draft.nodes[data.draft.start]) {
@@ -576,7 +576,7 @@
     main.innerHTML = '<p class="ed-hint">加载版本历史…</p>';
     try {
       if (!versionsCache) {
-        const data = await window.Game.api('admin/story/versions');
+        const data = await window.Game.api('versions');
         versionsCache = data.versions || [];
       }
     } catch (err) {
@@ -795,7 +795,7 @@
     busy = true;
     setStatus('保存草稿…');
     try {
-      const res = await window.Game.api('admin/story', {
+      const res = await window.Game.api('story', {
         method: 'PUT',
         body: JSON.stringify({ story: draft })
       });
@@ -840,7 +840,7 @@
     busy = true;
     setStatus('发布中…');
     try {
-      const res = await window.Game.api('admin/publish', {
+      const res = await window.Game.api('publish', {
         method: 'POST',
         body: JSON.stringify({ note: String(note).slice(0, 200) })
       });
@@ -1093,7 +1093,7 @@
     busy = true;
     setStatus('恢复版本…');
     try {
-      const res = await window.Game.api('admin/rollback', {
+      const res = await window.Game.api('rollback', {
         method: 'POST',
         body: JSON.stringify({ id: Number(id) })
       });

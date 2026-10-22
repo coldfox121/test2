@@ -1,4 +1,4 @@
-// 注册：用户名 + 密码，创建账号并直接返回登录态
+// 管理员账号初始化：只允许注册环境变量指定的管理员用户名
 import { json, randomHex, hashPassword, isValidUsername, createSession, roleOf } from '../_shared.js';
 
 export async function onRequestPost({ request, env }) {
@@ -11,6 +11,10 @@ export async function onRequestPost({ request, env }) {
 
   const username = String(body.username || '').toLowerCase();
   const password = String(body.password || '');
+
+  const adminName = String(env.ADMIN_USERNAME || '').trim().toLowerCase();
+  if (!adminName) return json({ error: '服务端未配置管理员账号' }, 500);
+  if (username !== adminName) return json({ error: '注册已关闭' }, 403);
 
   if (!isValidUsername(username)) {
     return json({ error: '账号需为 3-16 位字母、数字或下划线' }, 400);

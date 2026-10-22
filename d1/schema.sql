@@ -1,5 +1,6 @@
--- test2 云端账号、存档与剧情内容（Cloudflare D1）
--- users.save 保存完整游戏进度的 JSON 字符串，last_seen 为服务器毫秒时间戳
+-- test2 文字冒险平台：管理员账号 + 多款游戏
+-- users 仅用于管理员登录；玩家不再注册，进度存在浏览器本地
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
@@ -10,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at INTEGER NOT NULL
 );
 
--- 会话只存 token 的 SHA-256 散列，数据库泄露也无法伪造登录态
+-- 会话只存 token 的 SHA-256 散列
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -19,21 +20,30 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 
--- 剧情内容：单行保存草稿与线上版本，version 用于玩家端缓存判断
-CREATE TABLE IF NOT EXISTS story (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
+-- 每款游戏一行：code 是玩家访问链接里的随机长码
+-- status: draft = 私有；published = 已发布（玩家可进入）
+CREATE TABLE IF NOT EXISTS games (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft',
   draft TEXT NOT NULL DEFAULT '',
   published TEXT NOT NULL DEFAULT '',
   version INTEGER NOT NULL DEFAULT 0,
   draft_updated_at INTEGER,
   draft_updated_by TEXT,
   published_at INTEGER,
-  published_by TEXT
+  published_by TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 
--- 每次发布保留一份快照，可恢复为草稿
-CREATE TABLE IF NOT EXISTS story_versions (
+CREATE INDEX IF NOT EXISTS idx_games_code ON games(code);
+
+-- 每次发布保留快照，可恢复为草稿
+CREATE TABLE IF NOT EXISTS game_versions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  game_id TEXT NOT NULL,
   version INTEGER NOT NULL,
   content TEXT NOT NULL,
   note TEXT DEFAULT '',
@@ -41,4 +51,4 @@ CREATE TABLE IF NOT EXISTS story_versions (
   created_by TEXT
 );
 
-INSERT OR IGNORE INTO story (id, draft, published, version) VALUES (1, '', '', 0);
+CREATE INDEX IF NOT EXISTS idx_game_versions_game ON game_versions(game_id, id DESC);

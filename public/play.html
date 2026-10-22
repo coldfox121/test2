@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#100e0c">
+  <meta name="robots" content="noindex">
+  <title>故事页</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="auth-screen" hidden id="errorScreen">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <h1>无法打开</h1>
+        <p id="errorText">链接无效或暂未开放</p>
+      </div>
+      <p class="auth-hint">请向分享者确认访问链接是否完整。</p>
+    </div>
+  </div>
+
+  <div id="gameScreen" class="game-screen" hidden>
+    <div id="previewBar" class="preview-bar" hidden>
+      <span>试玩中 · 本次进度不会保存</span>
+      <button id="previewExit" type="button" class="btn-secondary">退出试玩</button>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-name"></span>
+        <span id="userTag" class="user-tag"></span>
+      </div>
+      <nav class="topbar-actions" aria-label="功能入口">
+        <button type="button" class="btn-ghost" data-modal="collection">图鉴</button>
+        <button type="button" class="btn-ghost" data-modal="settings">设置</button>
+      </nav>
+    </header>
+
+    <main class="game-main">
+      <figure class="scene-frame">
+        <img id="sceneImg" alt="场景画面">
+      </figure>
+
+      <article id="storyText" class="story-text"></article>
+
+      <div id="choices" class="choices"></div>
+
+      <section id="endingPanel" class="ending-panel" hidden>
+        <span id="endingTone" class="ending-tone"></span>
+        <h2 id="endingTitle" class="ending-title"></h2>
+        <div class="ending-actions">
+          <button id="restartBtn" type="button" class="btn-primary">重新开始</button>
+          <button id="endingCollectionBtn" type="button" class="btn-secondary">查看图鉴</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modalLayer" class="modal-layer" hidden>
+    <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h2 id="modalTitle"></h2>
+        <button id="modalClose" type="button" class="modal-close" aria-label="关闭">×</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/js/engine.js?v=1"></script>
+  <script src="/js/player.js?v=1"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
-// 管理员上传剧情配图到 KV，返回可直接访问的站内地址
-import { json, requireAdmin } from '../../_shared.js';
+// 管理员上传某款游戏的配图到 KV，返回可直接访问的站内地址
+import { json, requireAdmin } from '../../../../_shared.js';
+import { gameById } from '../../../../_games.js';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -23,10 +24,13 @@ const CONTENT_TYPES = {
   webp: 'image/webp'
 };
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, params }) {
   const admin = await requireAdmin(request, env);
   if (!admin) return json({ error: '需要管理员权限' }, 401);
   if (!env.IMAGES) return json({ error: '服务端未绑定图片存储（IMAGES）' }, 500);
+
+  const game = await gameById(env, params.id);
+  if (!game) return json({ error: '游戏不存在' }, 404);
 
   let form;
   try {
@@ -48,7 +52,7 @@ export async function onRequestPost({ request, env }) {
   const ext = imageExt(bytes);
   if (!ext) return json({ error: '仅支持 JPG、PNG、GIF、WebP 图片' }, 400);
 
-  const key = 'story/' + crypto.randomUUID() + '.' + ext;
+  const key = 'g/' + params.id + '/' + crypto.randomUUID() + '.' + ext;
   await env.IMAGES.put(key, buffer, {
     metadata: {
       contentType: CONTENT_TYPES[ext],

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#100e0c">
+  <meta name="robots" content="noindex">
+  <title>故事控制台</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- 登录 -->
+  <div id="adminLogin" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <h1>故事控制台</h1>
+        <p>管理你的文字冒险游戏</p>
+      </div>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" data-tab="login" role="tab" aria-selected="true">登录</button>
+        <button type="button" class="auth-tab" data-tab="register" role="tab" aria-selected="false">初始化管理员</button>
+      </div>
+
+      <form id="adminForm">
+        <label class="field">
+          <span>账号</span>
+          <input id="adminUser" name="username" type="text" autocomplete="username" maxlength="16"
+                 placeholder="管理员账号" required>
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input id="adminPass" name="password" type="password" autocomplete="current-password"
+                 minlength="6" maxlength="64" placeholder="至少 6 位" required>
+        </label>
+        <p id="adminError" class="form-error" role="alert"></p>
+        <button id="adminSubmit" type="submit" class="btn-primary">登录</button>
+      </form>
+      <p class="auth-hint" id="adminHint">首次使用请切换到「初始化管理员」创建账号。</p>
+    </div>
+  </div>
+
+  <!-- 控制台 -->
+  <div id="consoleScreen" class="console-screen" hidden>
+    <header class="console-head">
+      <div class="console-title">
+        <h1>故事控制台</h1>
+        <span id="adminName" class="console-sub"></span>
+      </div>
+      <div class="console-actions">
+        <button id="newGameBtn" type="button" class="btn-primary">新建游戏</button>
+        <button id="logoutBtn" type="button" class="btn-secondary">退出登录</button>
+      </div>
+    </header>
+    <main id="gameList" class="game-list"></main>
+    <p class="console-empty" id="emptyHint" hidden>还没有游戏，点右上角「新建游戏」开始。</p>
+  </div>
+
+  <!-- 试玩时使用的游戏界面 -->
+  <div id="gameScreen" class="game-screen" hidden>
+    <div id="previewBar" class="preview-bar" hidden>
+      <span>草稿试玩中 · 本次进度不会保存</span>
+      <button id="previewExit" type="button" class="btn-secondary">退出试玩</button>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-name"></span>
+        <span id="userTag" class="user-tag"></span>
+      </div>
+      <nav class="topbar-actions" aria-label="功能入口">
+        <button type="button" class="btn-ghost" data-modal="collection">图鉴</button>
+        <button type="button" class="btn-ghost" data-modal="settings">设置</button>
+      </nav>
+    </header>
+
+    <main class="game-main">
+      <figure class="scene-frame">
+        <img id="sceneImg" alt="场景画面">
+      </figure>
+      <article id="storyText" class="story-text"></article>
+      <div id="choices" class="choices"></div>
+      <section id="endingPanel" class="ending-panel" hidden>
+        <span id="endingTone" class="ending-tone"></span>
+        <h2 id="endingTitle" class="ending-title"></h2>
+        <div class="ending-actions">
+          <button id="restartBtn" type="button" class="btn-primary">重新开始</button>
+          <button id="endingCollectionBtn" type="button" class="btn-secondary">查看图鉴</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modalLayer" class="modal-layer" hidden>
+    <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h2 id="modalTitle"></h2>
+        <button id="modalClose" type="button" class="modal-close" aria-label="关闭">×</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="editorLayer" class="editor-layer" hidden>
+    <div class="editor-shell" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+      <header class="editor-head">
+        <div class="editor-title">
+          <h2 id="editorTitle">剧情编辑器</h2>
+          <span id="editorMeta" class="editor-meta"></span>
+        </div>
+        <div class="editor-head-actions">
+          <button id="edSave" type="button" class="btn-secondary">保存草稿</button>
+          <button id="edPreview" type="button" class="btn-secondary">试玩草稿</button>
+          <button id="edPublish" type="button" class="btn-secondary accent">发布</button>
+          <button id="edClose" type="button" class="modal-close" aria-label="关闭编辑器">×</button>
+        </div>
+      </header>
+
+      <nav id="edTabs" class="editor-tabs" aria-label="编辑器分区">
+        <button type="button" data-tab="nodes" class="active">剧情节点</button>
+        <button type="button" data-tab="scenes">场景配图</button>
+        <button type="button" data-tab="endings">结局</button>
+        <button type="button" data-tab="check">校验</button>
+        <button type="button" data-tab="versions">版本</button>
+      </nav>
+
+      <div class="editor-body">
+        <aside id="edSide" class="editor-side"></aside>
+        <main id="edMain" class="editor-main"></main>
+      </div>
+
+      <footer class="editor-foot">
+        <span id="edStatus">就绪</span>
+        <span id="edDirty"></span>
+      </footer>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/js/engine.js?v=1"></script>
+  <script src="/js/editor.js?v=3"></script>
+  <script src="/js/admin.js?v=1"></script>
+</body>
+</html>
