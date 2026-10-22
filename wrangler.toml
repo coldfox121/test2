@@ -10,7 +10,6 @@ binding = "DB"
 database_name = "test2-db"
 database_id = "e9044001-5aa5-4220-a63a-ed04c8fa6cd0"
 
-# R2 需先在 Cloudflare 控制台开通，开通后再启用以下绑定
-# [[r2_buckets]]
-# binding = "IMAGES"
-# bucket_name = "test2-images"
+[[kv_namespaces]]
+binding = "IMAGES"
+id = "df1b23f13e3c463e8791c4aaf294fe37"

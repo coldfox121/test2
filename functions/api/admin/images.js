@@ -1,4 +1,4 @@
-// 管理员上传剧情配图到 R2，返回可直接访问的站内地址
+// 管理员上传剧情配图到 KV，返回可直接访问的站内地址
 import { json, requireAdmin } from '../../_shared.js';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -26,7 +26,7 @@ const CONTENT_TYPES = {
 export async function onRequestPost({ request, env }) {
   const admin = await requireAdmin(request, env);
   if (!admin) return json({ error: '需要管理员权限' }, 401);
-  if (!env.IMAGES) return json({ error: '服务端未绑定 R2 存储（IMAGES）' }, 500);
+  if (!env.IMAGES) return json({ error: '服务端未绑定图片存储（IMAGES）' }, 500);
 
   let form;
   try {
@@ -50,11 +50,8 @@ export async function onRequestPost({ request, env }) {
 
   const key = 'story/' + crypto.randomUUID() + '.' + ext;
   await env.IMAGES.put(key, buffer, {
-    httpMetadata: {
+    metadata: {
       contentType: CONTENT_TYPES[ext],
-      cacheControl: 'public, max-age=31536000, immutable'
-    },
-    customMetadata: {
       uploader: admin.username,
       originalName: String(file.name || '').slice(0, 200)
     }
