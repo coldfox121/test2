@@ -7,6 +7,12 @@
   <meta name="robots" content="noindex">
   <title>故事页</title>
   <link rel="stylesheet" href="/style.css">
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('story.theme');
+      if (savedTheme && savedTheme !== 'amber') document.documentElement.setAttribute('data-theme', savedTheme);
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="auth-screen">
@@ -18,5 +24,6 @@
       <p class="auth-hint">请向分享者索取完整访问地址。</p>
     </div>
   </div>
+  <script src="/js/theme.js?v=1"></script>
 </body>
 </html>
