@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const NODE_ID_RE = /^[A-Za-z0-9_-]+$/;
+  const NODE_ID_RE = /^[A-Za-z0-9_\-\u4e00-\u9fff]+$/;
   let layer;
   let side;
   let main;
@@ -627,7 +627,7 @@
     if (ids.length > 500) err('节点数量超过 500 个上限');
 
     Object.keys(scenes).forEach(function (key) {
-      if (!NODE_ID_RE.test(key)) err('场景键 "' + key + '" 只能包含字母、数字、下划线和短横线', 'scenes', key);
+      if (!NODE_ID_RE.test(key)) err('场景键 "' + key + '" 只能包含中文、字母、数字、下划线和短横线', 'scenes', key);
       if (typeof scenes[key] !== 'string' || !scenes[key]) err('场景 "' + key + '" 缺少图片地址', 'scenes', key);
     });
 
@@ -670,7 +670,7 @@
       const node = nodes[id];
       const label = '节点 "' + id + '"';
 
-      if (!NODE_ID_RE.test(id)) err(label + ' 的 id 只能包含字母、数字、下划线和短横线', 'nodes', id);
+      if (!NODE_ID_RE.test(id)) err(label + ' 的 id 只能包含中文、字母、数字、下划线和短横线', 'nodes', id);
       if (!node || typeof node !== 'object') {
         err(label + ' 格式错误', 'nodes', id);
         return;
@@ -946,7 +946,7 @@
     const current = selectedNode;
 
     if (!next) return toast('节点 ID 不能为空');
-    if (!NODE_ID_RE.test(next)) return toast('节点 ID 只能包含字母、数字、下划线和短横线');
+    if (!NODE_ID_RE.test(next)) return toast('节点 ID 只能包含中文、字母、数字、下划线和短横线');
     if (next === current) return;
     if (draft.nodes[next]) return toast('节点 ID 已存在');
 
@@ -983,7 +983,7 @@
     const current = selectedScene;
 
     if (!next) return toast('场景键不能为空');
-    if (!NODE_ID_RE.test(next)) return toast('场景键只能包含字母、数字、下划线和短横线');
+    if (!NODE_ID_RE.test(next)) return toast('场景键只能包含中文、字母、数字、下划线和短横线');
     if (next === current) return;
     if (draft.scenes[next] !== undefined) return toast('场景键已存在');
 
@@ -1028,7 +1028,7 @@
     const current = selectedEnding;
 
     if (!next) return toast('结局 ID 不能为空');
-    if (!NODE_ID_RE.test(next)) return toast('结局 ID 只能包含字母、数字、下划线和短横线');
+    if (!NODE_ID_RE.test(next)) return toast('结局 ID 只能包含中文、字母、数字、下划线和短横线');
     if (next === current) return;
     if (draft.endings.some(function (ending) { return ending.id === next; })) return toast('结局 ID 已存在');
 

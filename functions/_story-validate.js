@@ -30,7 +30,7 @@ export function validateStory(story) {
   if (nodeIds.size > 500) errors.push('节点数量超过 500 个上限');
 
   sceneKeys.forEach(key => {
-    if (!/^[A-Za-z0-9_-]+$/.test(key)) errors.push('场景键 "' + key + '" 只能包含字母、数字、下划线和短横线');
+    if (!/^[A-Za-z0-9_\-\u4e00-\u9fff]+$/.test(key)) errors.push('场景键 "' + key + '" 只能包含中文、字母、数字、下划线和短横线');
     if (typeof story.scenes[key] !== 'string' || !story.scenes[key]) {
       errors.push('场景 "' + key + '" 缺少图片地址');
     }
@@ -60,8 +60,8 @@ export function validateStory(story) {
     const node = story.nodes[id];
     const label = '节点 "' + id + '"';
 
-    if (!/^[A-Za-z0-9_-]+$/.test(id)) {
-      errors.push(label + ' 的 id 只能包含字母、数字、下划线和短横线');
+    if (!/^[A-Za-z0-9_\-\u4e00-\u9fff]+$/.test(id)) {
+      errors.push(label + ' 的 id 只能包含中文、字母、数字、下划线和短横线');
     }
     if (!isPlainObject(node)) {
       errors.push(label + ' 格式错误');
