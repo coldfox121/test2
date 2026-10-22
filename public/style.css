@@ -113,27 +113,6 @@ p {
   letter-spacing: 2px;
 }
 
-.auth-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 18px;
-}
-
-.auth-tab {
-  flex: 1;
-  padding: 9px 0;
-  background: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.auth-tab.active {
-  color: var(--accent-light);
-  border-bottom-color: var(--accent);
-}
-
 .field {
   display: block;
   margin-bottom: 14px;
@@ -189,13 +168,6 @@ p {
 
 .btn-primary:disabled {
   opacity: .6;
-}
-
-.auth-hint {
-  margin-top: 14px;
-  color: var(--faint);
-  font-size: 11px;
-  text-align: center;
 }
 
 .auth-note {
@@ -1283,7 +1255,7 @@ textarea.ed-input {
 
 .console-head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
@@ -1307,7 +1279,19 @@ textarea.ed-input {
 
 .console-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.console-actions .btn-primary,
+.console-actions .btn-secondary {
+  width: auto;
+  height: 36px;
+  margin: 0;
+  padding: 0 16px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .game-list {

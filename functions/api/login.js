@@ -29,6 +29,10 @@ export async function onRequestPost({ request, env }) {
     return json({ error: '账号或密码错误' }, 401);
   }
 
+  if (roleOf(user, env) !== 'admin') {
+    return json({ error: '账号或密码错误' }, 401);
+  }
+
   const token = await createSession(env, user.id);
-  return json({ token, username: user.username, role: roleOf(user, env) });
+  return json({ token, username: user.username, role: 'admin' });
 }

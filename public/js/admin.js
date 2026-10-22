@@ -11,13 +11,11 @@
   const passInput = document.getElementById('adminPass');
   const errorEl = document.getElementById('adminError');
   const submitBtn = document.getElementById('adminSubmit');
-  const hintEl = document.getElementById('adminHint');
   const gameList = document.getElementById('gameList');
   const emptyHint = document.getElementById('emptyHint');
   const adminNameEl = document.getElementById('adminName');
 
   let token = localStorage.getItem(TOKEN_KEY) || '';
-  let authMode = 'login';
   let games = [];
   let currentGame = null;
   let busy = false;
@@ -99,25 +97,10 @@
 
   /* ---------------- 登录 ---------------- */
 
-  function setMode(mode) {
-    authMode = mode;
-    document.querySelectorAll('.auth-tab').forEach(function (tab) {
-      const active = tab.dataset.tab === mode;
-      tab.classList.toggle('active', active);
-      tab.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-    submitBtn.textContent = mode === 'register' ? '初始化' : '登录';
-    passInput.autocomplete = mode === 'register' ? 'new-password' : 'current-password';
-    hintEl.textContent = mode === 'register'
-      ? '只有在服务端配置的管理员账号名可以初始化。'
-      : '首次使用请切换到「初始化管理员」创建账号。';
-    errorEl.textContent = '';
-  }
-
   function setBusy(next) {
     busy = next;
     submitBtn.disabled = next;
-    submitBtn.textContent = next ? '请稍候…' : (authMode === 'register' ? '初始化' : '登录');
+    submitBtn.textContent = next ? '请稍候…' : '登录';
   }
 
   async function onSubmit(event) {
@@ -137,7 +120,7 @@
 
     setBusy(true);
     try {
-      const data = await api(authMode === 'register' ? 'register' : 'login', {
+      const data = await api('login', {
         method: 'POST',
         body: JSON.stringify({ username: username.toLowerCase(), password: password })
       });
@@ -289,9 +272,6 @@
   /* ---------------- 事件 ---------------- */
 
   function bind() {
-    document.querySelectorAll('.auth-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () { setMode(tab.dataset.tab); });
-    });
     form.addEventListener('submit', onSubmit);
 
     document.getElementById('newGameBtn').addEventListener('click', newGame);
@@ -316,7 +296,6 @@
 
   async function init() {
     bind();
-    setMode('login');
 
     if (!token) return;
 
