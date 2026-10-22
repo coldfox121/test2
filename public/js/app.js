@@ -472,12 +472,13 @@
   function renderSettings() {
     modalTitle.textContent = '设置';
     const isCloud = mode === 'cloud';
+    const isAdmin = cloudRole === 'admin';
     modalBody.innerHTML =
       '<section class="modal-section">' +
         '<h3>账号</h3>' +
         '<div class="setting-row"><span>模式</span><span>' + (isCloud ? '云端账号' : '本地试玩') + '</span></div>' +
         '<div class="setting-row"><span>账号名</span><span>' + escapeHtml(isCloud ? cloudName : '本地玩家') + '</span></div>' +
-        '<div class="setting-row"><span>权限</span><span>' + (cloudRole === 'admin' ? '管理员' : '玩家') + '</span></div>' +
+        (isAdmin ? '<div class="setting-row"><span>权限</span><span>管理员</span></div>' : '') +
       '</section>' +
       '<section class="modal-section">' +
         '<h3>进度</h3>' +
@@ -486,16 +487,16 @@
         '<button type="button" class="btn-secondary danger" data-action="reset">清除全部进度</button>' +
         (isCloud ? '<button type="button" class="btn-secondary" id="logoutBtn">退出登录</button>' : '') +
       '</section>' +
-      '<section class="modal-section">' +
-        '<h3>剧情内容</h3>' +
-        '<div class="setting-row"><span>来源</span><span>' +
-          (storySource === 'cloud' ? '云端 v' + storyVersion : '内置剧情') +
-        '</span></div>' +
-        (cloudRole === 'admin'
-          ? '<p class="setting-hint">你是管理员，可以直接编辑剧情、上传配图并发布。</p>' +
-            '<button type="button" class="btn-secondary" data-action="editor">打开剧情编辑器</button>'
-          : '<p class="setting-hint">剧情由管理员维护。</p>') +
-      '</section>';
+      (isAdmin
+        ? '<section class="modal-section">' +
+            '<h3>剧情内容</h3>' +
+            '<div class="setting-row"><span>来源</span><span>' +
+              (storySource === 'cloud' ? '云端 v' + storyVersion : '内置剧情') +
+            '</span></div>' +
+            '<p class="setting-hint">你可以直接编辑剧情、上传配图并发布。</p>' +
+            '<button type="button" class="btn-secondary" data-action="editor">打开剧情编辑器</button>' +
+          '</section>'
+        : '');
     modalBody.scrollTop = 0;
   }
 
