@@ -203,6 +203,30 @@
     }
     drop.innerHTML = html;
     drop.hidden = false;
+    positionFlagDropdown(container, drop);
+  }
+
+  /* 下拉定位：优先向下展开，下方空间不足时向上翻转 */
+  function positionFlagDropdown(container, drop) {
+    const anchor = container.querySelector('.ed-fp-tags');
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const maxH = 260;
+    const width = Math.max(200, Math.min(rect.width, window.innerWidth - 16));
+    drop.style.width = width + 'px';
+    drop.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px';
+    drop.style.maxHeight = maxH + 'px';
+    const need = Math.min(drop.scrollHeight || maxH, maxH);
+    const below = window.innerHeight - rect.bottom - 8;
+    const above = rect.top - 8;
+    if (below < need && above > below) {
+      const h = Math.min(need, Math.max(120, above));
+      drop.style.maxHeight = h + 'px';
+      drop.style.top = Math.max(8, rect.top - h - 4) + 'px';
+    } else {
+      drop.style.maxHeight = Math.min(need, Math.max(120, below)) + 'px';
+      drop.style.top = (rect.bottom + 4) + 'px';
+    }
   }
 
   /* 从 picker DOM 读当前值数组 */
@@ -232,6 +256,7 @@
   }
 
   function flagPickerRemove(container, value) {
+    if (!value) return;
     const tag = container.querySelector('.ed-fp-tag[data-v="' + value.replace(/"/g, '\\"') + '"]');
     if (tag) tag.remove();
     markDirtyFromPicker(container);
@@ -1392,15 +1417,32 @@
     main.addEventListener('click', onMainClick);
 
     /* ---- 旗标选择器：focus/input/keydown/click-item/click-x ---- */
+    function hideAllDropdowns() {
+      main.querySelectorAll('.ed-fp-dropdown').forEach(function (d) { d.hidden = true; });
+    }
+    function openPicker(container, input) {
+      hideAllDropdowns();
+      const known = collectAllFlags();
+      renderFlagPickerDropdown(container, known, flagPickerValues(container), input.value);
+    }
+    // 滚动/尺寸变化时收起，避免 fixed 下拉与输入框错位
+    main.addEventListener('scroll', hideAllDropdowns, true);
+    window.addEventListener('resize', hideAllDropdowns);
     main.addEventListener('focusin', function (event) {
       const input = event.target.closest('.ed-fp-input');
       if (!input) return;
       const picker = input.closest('.ed-flag-picker');
       if (!picker) return;
-      // 关掉所有其他下拉，打开当前
-      main.querySelectorAll('.ed-fp-dropdown').forEach(function (d) { d.hidden = true; });
-      const known = collectAllFlags();
-      renderFlagPickerDropdown(picker, known, flagPickerValues(picker), input.value);
+      openPicker(picker, input);
+    });
+    main.addEventListener('click', function (event) {
+      const input = event.target.closest('.ed-fp-input');
+      if (!input) return;
+      const picker = input.closest('.ed-flag-picker');
+      if (!picker) return;
+      // 确保聚焦，某些情况下点击不会自动 focus
+      if (document.activeElement !== input) input.focus();
+      openPicker(picker, input);
     });
 
     main.addEventListener('input', function (event) {
@@ -1619,7 +1661,8 @@
     const fpX = event.target.closest('.ed-fp-x');
     if (fpX) {
       const picker = event.target.closest('.ed-flag-picker');
-      if (picker) flagPickerRemove(picker, fpX.dataset.v);
+      const tag = fpX.closest('.ed-fp-tag');
+      if (picker && tag) flagPickerRemove(picker, tag.dataset.v);
       return;
     }
 
