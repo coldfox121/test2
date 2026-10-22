@@ -288,6 +288,8 @@
       return;
     }
 
+    bind();
+
     previewBackup = {
       story: STORY,
       state: state ? JSON.parse(JSON.stringify(state)) : null,
