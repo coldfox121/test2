@@ -270,8 +270,6 @@
   }
 
   function openSettings() {
-    const themeDots = window.Theme ? window.Theme.markup() : '';
-
     openModal('设置',
       '<section class="modal-section">' +
         '<h3>进度</h3>' +
@@ -279,11 +277,6 @@
         (previewing ? '当前为试玩模式，进度不会保存。' : '进度保存在本机浏览器中。') + '</p>' +
         '<button type="button" class="btn-secondary" data-action="restart">重新开始本轮</button>' +
         '<button type="button" class="btn-secondary danger" data-action="reset">清除全部进度</button>' +
-      '</section>' +
-      '<section class="modal-section">' +
-        '<h3>界面配色</h3>' +
-        '<p class="setting-hint">选择后立即生效，会保存在本机浏览器。</p>' +
-        '<div class="theme-dots">' + themeDots + '</div>' +
       '</section>');
   }
 
@@ -297,13 +290,15 @@
 
     previewBackup = {
       story: STORY,
-      state: state ? JSON.parse(JSON.stringify(state)) : null
+      state: state ? JSON.parse(JSON.stringify(state)) : null,
+      theme: window.Theme ? window.Theme.current() : 'amber'
     };
     previewing = true;
     previewExitCallback = onExit || null;
 
     STORY = nextStory;
     state = newState();
+    if (window.Theme) window.Theme.set(STORY.theme || 'amber');
 
     previewBar.hidden = false;
     if (brandName && STORY.title) brandName.textContent = STORY.title;
@@ -322,6 +317,7 @@
     previewing = false;
     STORY = previewBackup.story;
     state = previewBackup.state;
+    if (window.Theme) window.Theme.set(previewBackup.theme);
     previewBackup = null;
     previewExitCallback = null;
     previewBar.hidden = true;
@@ -405,6 +401,7 @@
     }
     bind();
     STORY = story;
+    if (window.Theme) window.Theme.set(STORY.theme || 'amber');
     saveKey = opts.saveKey || '';
     if (brandName && opts.title) brandName.textContent = opts.title;
     if (opts.title) document.title = opts.title;

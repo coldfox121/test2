@@ -19,6 +19,7 @@ const PLACEHOLDER =
 export function starterStory(title) {
   return {
     start: 'start',
+    theme: 'amber',
     scenes: { default: PLACEHOLDER },
     nodes: {
       start: {

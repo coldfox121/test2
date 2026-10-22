@@ -7,12 +7,6 @@
   <meta name="robots" content="noindex">
   <title>故事控制台</title>
   <link rel="stylesheet" href="/style.css">
-  <script>
-    try {
-      var savedTheme = localStorage.getItem('story.theme');
-      if (savedTheme && savedTheme !== 'amber') document.documentElement.setAttribute('data-theme', savedTheme);
-    } catch (e) {}
-  </script>
 </head>
 <body>
   <!-- 登录 -->
@@ -37,10 +31,6 @@
         <p id="adminError" class="form-error" role="alert"></p>
         <button id="adminSubmit" type="submit" class="btn-primary">登录</button>
       </form>
-      <div class="auth-theme">
-        <span class="theme-label">界面配色</span>
-        <div class="theme-dots" data-theme-mount></div>
-      </div>
     </div>
   </div>
 
@@ -52,8 +42,6 @@
         <span id="adminName" class="console-sub"></span>
       </div>
       <div class="console-actions">
-        <span class="theme-label">配色</span>
-        <div class="theme-dots" data-theme-mount></div>
         <button id="newGameBtn" type="button" class="btn-primary">新建游戏</button>
         <button id="logoutBtn" type="button" class="btn-secondary">退出登录</button>
       </div>
@@ -114,6 +102,10 @@
           <h2 id="editorTitle">剧情编辑器</h2>
           <span id="editorMeta" class="editor-meta"></span>
         </div>
+        <div class="editor-theme">
+          <span class="theme-label">故事配色</span>
+          <div id="edTheme" class="theme-dots"></div>
+        </div>
         <div class="editor-head-actions">
           <button id="edSave" type="button" class="btn-secondary">保存草稿</button>
           <button id="edPreview" type="button" class="btn-secondary">试玩草稿</button>
@@ -144,9 +136,9 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="/js/theme.js?v=1"></script>
-  <script src="/js/engine.js?v=2"></script>
-  <script src="/js/editor.js?v=4"></script>
+  <script src="/js/theme.js?v=2"></script>
+  <script src="/js/engine.js?v=3"></script>
+  <script src="/js/editor.js?v=5"></script>
   <script src="/js/admin.js?v=2"></script>
 </body>
 </html>

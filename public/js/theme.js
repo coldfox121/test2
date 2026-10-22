@@ -1,8 +1,6 @@
-/* 界面配色：5 套主题，选择结果存在本机 */
+/* 界面配色：由作者在编辑器里为每个故事选择，玩家端跟随故事设置 */
 (function () {
   'use strict';
-
-  const KEY = 'story.theme';
 
   const THEMES = [
     { id: 'amber', name: '琥珀夜', bg: '#141210', accent: '#d9a441' },
@@ -16,15 +14,7 @@
     return THEMES.find(function (theme) { return theme.id === id; }) || THEMES[0];
   }
 
-  function current() {
-    try {
-      return find(localStorage.getItem(KEY) || 'amber').id;
-    } catch (err) {
-      return 'amber';
-    }
-  }
-
-  function apply(id) {
+  function set(id) {
     const theme = find(id);
 
     if (theme.id === 'amber') document.documentElement.removeAttribute('data-theme');
@@ -33,47 +23,25 @@
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', theme.bg);
 
-    try {
-      localStorage.setItem(KEY, theme.id);
-    } catch (err) {
-      // 隐私模式下无法保存，仅本次生效
-    }
-
-    document.querySelectorAll('[data-theme-choice]').forEach(function (button) {
-      const active = button.dataset.themeChoice === theme.id;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
+    return theme.id;
   }
 
-  function markup() {
-    const active = current();
+  function current() {
+    return document.documentElement.getAttribute('data-theme') || 'amber';
+  }
+
+  function markup(selected, attribute) {
+    const active = find(selected || current()).id;
+
     return THEMES.map(function (theme) {
       return '<button type="button" class="theme-dot' + (theme.id === active ? ' active' : '') +
-        '" data-theme-choice="' + theme.id + '" title="' + theme.name + '" aria-label="' + theme.name +
+        '" ' + attribute + '="' + theme.id + '" title="' + theme.name + '" aria-label="' + theme.name +
         '" aria-pressed="' + (theme.id === active ? 'true' : 'false') +
         '" style="--dot-bg:' + theme.bg + ';--dot-accent:' + theme.accent + '"><span></span></button>';
     }).join('');
   }
 
-  function mount(element) {
-    if (!element) return;
-    element.innerHTML = markup();
-    element.classList.add('theme-dots');
-  }
+  set('amber');
 
-  document.addEventListener('click', function (event) {
-    const button = event.target.closest('[data-theme-choice]');
-    if (button) apply(button.dataset.themeChoice);
-  });
-
-  function mountAll() {
-    document.querySelectorAll('[data-theme-mount]').forEach(mount);
-  }
-
-  apply(current());
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountAll);
-  else mountAll();
-
-  window.Theme = { apply: apply, current: current, markup: markup, mount: mount, list: THEMES };
+  window.Theme = { set: set, current: current, markup: markup, find: find, list: THEMES };
 })();

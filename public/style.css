@@ -312,22 +312,6 @@ p {
   flex-wrap: wrap;
 }
 
-.auth-card .theme-dots {
-  justify-content: center;
-}
-
-.auth-theme {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.modal-section .theme-dots {
-  margin-top: 10px;
-}
-
 .theme-dot {
   width: 24px;
   height: 24px;
@@ -824,10 +808,21 @@ body.editor-open {
 .editor-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+}
+
+.editor-theme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.editor-head-actions {
+  margin-left: 12px;
 }
 
 .editor-title {
@@ -1381,6 +1376,25 @@ textarea.ed-input {
 
   .editor-head {
     padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .editor-theme .theme-label {
+    display: none;
+  }
+
+  .editor-theme .theme-dot {
+    width: 18px;
+    height: 18px;
+  }
+
+  .editor-theme .theme-dot span {
+    width: 8px;
+    height: 8px;
+  }
+
+  .editor-head-actions {
+    margin-left: 0;
   }
 
   .editor-meta {

@@ -12,6 +12,7 @@
   let statusEl;
   let dirtyEl;
   let tabsEl;
+  let themeEl;
 
   let draft = null;
   let meta = {};
@@ -168,6 +169,7 @@
       }
 
       selectedNode = draft.start;
+      if (!draft.theme) draft.theme = 'amber';
       selectedScene = sceneKeys()[0] || null;
       selectedEnding = draft.endings[0] ? draft.endings[0].id : null;
       nodeFilter = '';
@@ -203,7 +205,13 @@
 
     renderSide();
     renderMain();
+    renderTheme();
     updateDirtyLabel();
+  }
+
+  function renderTheme() {
+    if (!themeEl || !window.Theme) return;
+    themeEl.innerHTML = window.Theme.markup(draft.theme || 'amber', 'data-game-theme');
   }
 
   function renderSide() {
@@ -1101,6 +1109,7 @@
       draftSaved = true;
       dirty = true;
       selectedNode = draft.start;
+      if (!draft.theme) draft.theme = 'amber';
       selectedScene = sceneKeys()[0] || null;
       selectedEnding = draft.endings[0] ? draft.endings[0].id : null;
       tab = 'nodes';
@@ -1129,6 +1138,14 @@
     document.getElementById('edPreview').addEventListener('click', previewDraft);
     document.getElementById('edPublish').addEventListener('click', publishDraft);
     document.getElementById('edClose').addEventListener('click', close);
+
+    layer.addEventListener('click', function (event) {
+      const dot = event.target.closest('[data-game-theme]');
+      if (!dot || !draft) return;
+      draft.theme = dot.dataset.gameTheme;
+      markDirty();
+      renderTheme();
+    });
 
     side.addEventListener('click', function (event) {
       const node = event.target.closest('[data-node]');
@@ -1411,6 +1428,7 @@
     statusEl = document.getElementById('edStatus');
     dirtyEl = document.getElementById('edDirty');
     tabsEl = document.getElementById('edTabs');
+    themeEl = document.getElementById('edTheme');
     bind();
     updateDirtyLabel();
   }

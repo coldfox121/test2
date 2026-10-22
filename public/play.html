@@ -7,12 +7,6 @@
   <meta name="robots" content="noindex">
   <title>故事页</title>
   <link rel="stylesheet" href="/style.css">
-  <script>
-    try {
-      var savedTheme = localStorage.getItem('story.theme');
-      if (savedTheme && savedTheme !== 'amber') document.documentElement.setAttribute('data-theme', savedTheme);
-    } catch (e) {}
-  </script>
 </head>
 <body>
   <div class="auth-screen" hidden id="errorScreen">
@@ -74,8 +68,8 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="/js/theme.js?v=1"></script>
-  <script src="/js/engine.js?v=2"></script>
+  <script src="/js/theme.js?v=2"></script>
+  <script src="/js/engine.js?v=3"></script>
   <script src="/js/player.js?v=1"></script>
 </body>
 </html>
