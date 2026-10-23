@@ -105,20 +105,28 @@
     return draft && draft.nodes ? Object.keys(draft.nodes) : [];
   }
 
-  function optionsHtml(ids, selected) {
+  function nodeIdsNoEndings() {
+    return nodeIds().filter(function (id) {
+      return !(draft.nodes[id] && draft.nodes[id].ending);
+    });
+  }
+
+  function optionsHtml(ids, selected, nodes) {
     let html = '';
     if (selected && ids.indexOf(selected) === -1) {
-      html += '<option value="' + esc(selected) + '" selected>（无效）' + esc(selected) + '</option>';
+      const suffix = nodes && nodes[selected] && nodes[selected].ending ? '（结局）' : '';
+      html += '<option value="' + esc(selected) + '" selected>（无效）' + esc(selected) + suffix + '</option>';
     }
     ids.forEach(function (id) {
-      html += '<option value="' + esc(id) + '"' + (id === selected ? ' selected' : '') + '>' + esc(id) + '</option>';
+      const suffix = nodes && nodes[id] && nodes[id].ending ? '（结局）' : '';
+      html += '<option value="' + esc(id) + '"' + (id === selected ? ' selected' : '') + '>' + esc(id) + suffix + '</option>';
     });
     if (!ids.length) html = '<option value="">（无节点）</option>';
     return html;
   }
 
   function nodeSelect(selected, attrs) {
-    return '<select ' + (attrs || '') + '>' + optionsHtml(nodeIds(), selected) + '</select>';
+    return '<select ' + (attrs || '') + '>' + optionsHtml(nodeIds(), selected, draft && draft.nodes) + '</select>';
   }
 
   function sceneKeys() {
@@ -662,7 +670,7 @@
               : '') +
           '</div>' +
           '<label class="ed-side-label">起点节点</label>' +
-          '<select id="edStartSelect" class="ed-input">' + optionsHtml(nodeIds(), draft.start) + '</select>'
+          '<select id="edStartSelect" class="ed-input">' + optionsHtml(nodeIdsNoEndings(), draft.start, draft && draft.nodes) + '</select>'
         : '<p class="ed-hint">选中节点后，右侧会列出它的出边与入边。</p>';
 
       side.innerHTML = head + '<div class="ed-list" id="edNodeList">' + nodeListHtml() + '</div>';
