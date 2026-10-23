@@ -252,28 +252,47 @@
     '</div>';
   }
 
-  function renderFlagPickerDropdown(container, known, currentList, query) {
+  function renderFlagPickerDropdown(container, knownObj, currentList, query) {
     const drop = container.querySelector('.ed-fp-dropdown');
     const q = String(query || '').trim().toLowerCase();
     const curSet = new Set((currentList || []).map(function (v) { return String(v); }));
-    // 过滤掉已选的 + 按 query 过滤
-    const pos = known.filter(function (k) {
-      if (curSet.has(k)) return false;
-      return !q || k.toLowerCase().indexOf(q) !== -1;
-    });
-    const neg = pos.slice(); // 取反候选同上
+
+    const varSet = knownObj.varSet || new Set();
+    const allKnown = knownObj.known || [];
+    const acceptVars = knownObj.vars && knownObj.vars.length > 0; // 说明调用方允许数值
+
+    // 按 flag / var 分两组、各自过滤、按 query 过滤、排除已选
+    function filterGroup(group) {
+      return group.filter(function (k) {
+        if (curSet.has(k)) return false;
+        return !q || k.toLowerCase().indexOf(q) !== -1;
+      });
+    }
+    const posFlags = filterGroup(knownObj.flags || []);
+    const posVars = acceptVars ? filterGroup(knownObj.vars || []) : [];
+    const hasAny = allKnown.length > 0;
+
     let html = '';
-    if (!known.length) {
+    if (!hasAny) {
       html += '<div class="ed-fp-empty">还没有任何旗标可用。先去节点或选项里「设置旗标」。</div>';
-    } else if (!pos.length) {
+    } else if (posFlags.length + posVars.length === 0) {
       html += '<div class="ed-fp-empty">全部已选，或者没有匹配。</div>';
     } else {
-      html += '<div class="ed-fp-group"><div class="ed-fp-group-title">满足（正向）</div>' +
-        pos.map(function (k) { return '<button type="button" class="ed-fp-item" data-v="' + esc(k) + '">' + esc(k) + '</button>'; }).join('') +
-      '</div>';
-      html += '<div class="ed-fp-group"><div class="ed-fp-group-title">未满足（取反）</div>' +
-        neg.map(function (k) { return '<button type="button" class="ed-fp-item neg" data-v="!' + esc(k) + '">非 ' + esc(k) + '</button>'; }).join('') +
-      '</div>';
+      if (posFlags.length) {
+        html += '<div class="ed-fp-group"><div class="ed-fp-group-title">旗标</div>' +
+          posFlags.map(function (k) {
+            return '<button type="button" class="ed-fp-item" data-v="' + esc(k) + '">' + esc(k) + '</button>' +
+                   '<button type="button" class="ed-fp-item neg" data-v="!' + esc(k) + '">非 ' + esc(k) + '</button>';
+          }).join('') +
+        '</div>';
+      }
+      if (posVars.length) {
+        html += '<div class="ed-fp-group"><div class="ed-fp-group-title">数值属性（可写 名字>=3 比较）</div>' +
+          posVars.map(function (k) {
+            return '<button type="button" class="ed-fp-item var" data-v="' + esc(k) + '">' + esc(k) + '（数值）</button>';
+          }).join('') +
+        '</div>';
+      }
     }
     drop.innerHTML = html;
     drop.hidden = false;
@@ -475,9 +494,31 @@
       .sort();
   }
 
-  function collectPickerNames() {
-    const all = collectAllFlags().concat(varNames());
-    return Array.from(new Set(all)).sort();
+  /* 判断一个 picker 容器是设置旗标（只接受旗标）还是条件（旗标+数值都接受） */
+  function pickerAcceptsFlags(container) {
+    return true; // 条件和设置都接受旗标
+  }
+  function pickerAcceptsVars(container) {
+    if (!container) return true;
+    // 设置旗标（data-nf-set / data-cf-set）不接受数值属性
+    if (container.dataset.nfSet !== undefined || container.dataset.cfSet !== undefined) return false;
+    return true; // req / hideUnless / bf.req 条件都接受数值属性（用于金币>=3 这种比较）
+  }
+
+  /* 按 picker 类型返回已知名字集合，并标记哪些是数值属性 */
+  function collectPickerNamesFor(container) {
+    const flagNames = Array.from(new Set(collectAllFlags())).sort();
+    const varNameSet = new Set(varNames());
+    const varNameList = Array.from(varNameSet).sort();
+
+    const acceptFlags = pickerAcceptsFlags(container);
+    const acceptVars = pickerAcceptsVars(container);
+
+    const flags = acceptFlags ? flagNames : [];
+    const vars = acceptVars ? varNameList : [];
+    const known = flags.concat(vars);
+
+    return { known: known, varSet: varNameSet, flags: flags, vars: vars };
   }
 
   /* 每个旗标/属性的「设置于」和「被引用」清单 */
@@ -2623,8 +2664,8 @@
     }
     function openPicker(container, input) {
       hideAllDropdowns();
-      const known = collectPickerNames();
-      renderFlagPickerDropdown(container, known, flagPickerValues(container), input.value);
+      const knownObj = collectPickerNamesFor(container);
+      renderFlagPickerDropdown(container, knownObj, flagPickerValues(container), input.value);
     }
     // 滚动/尺寸变化时收起，避免 fixed 下拉与输入框错位
     main.addEventListener('scroll', hideAllDropdowns, true);
@@ -2651,7 +2692,7 @@
       if (!input) return;
       const picker = input.closest('.ed-flag-picker');
       if (!picker) return;
-      renderFlagPickerDropdown(picker, collectPickerNames(), flagPickerValues(picker), input.value);
+      renderFlagPickerDropdown(picker, collectPickerNamesFor(picker), flagPickerValues(picker), input.value);
     });
 
     main.addEventListener('keydown', function (event) {
@@ -2937,7 +2978,7 @@
       if (picker) {
         flagPickerAdd(picker, fpItem.dataset.v);
         picker.querySelector('.ed-fp-input').focus();
-        renderFlagPickerDropdown(picker, collectPickerNames(), flagPickerValues(picker), picker.querySelector('.ed-fp-input').value);
+        renderFlagPickerDropdown(picker, collectPickerNamesFor(picker), flagPickerValues(picker), picker.querySelector('.ed-fp-input').value);
       }
       return;
     }

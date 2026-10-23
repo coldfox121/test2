@@ -1302,6 +1302,16 @@ textarea.ed-input {
   color: var(--danger-light);
 }
 
+.ed-fp-item.var {
+  border-style: dashed;
+  color: var(--faint);
+}
+
+.ed-fp-item.var:hover {
+  border-color: var(--accent-dark);
+  color: var(--accent-light);
+}
+
 .ed-fp-tip {
   display: block;
   margin-top: 4px;
