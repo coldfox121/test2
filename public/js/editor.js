@@ -2801,12 +2801,25 @@
       input.value = cur ? (cur + ', ' + fragment) : fragment;
       // 触发 input 事件以保存
       input.dispatchEvent(new Event('input', { bubbles: true }));
+      // 选完立刻关掉 dropdown，否则 fixed+z-index=300 会挡住所有交互
+      const drop = picker.querySelector('.ed-fp-dropdown');
+      if (drop) drop.hidden = true;
       input.focus();
     }
 
     // 滚动/尺寸变化时收起，避免 fixed 下拉与输入框错位
     main.addEventListener('scroll', hideAllDropdowns, true);
     window.addEventListener('resize', hideAllDropdowns);
+    // 焦点离开 varchange 输入框时自动关闭 dropdown
+    // setTimeout 150ms 让点击 dropdown item 的 click 事件先触发
+    main.addEventListener('focusout', function (event) {
+      const picker = event.target.closest('.ed-varchange');
+      if (!picker) return;
+      setTimeout(function () {
+        const drop = picker.querySelector('.ed-fp-dropdown');
+        if (drop && !picker.contains(document.activeElement)) drop.hidden = true;
+      }, 150);
+    });
     main.addEventListener('focusin', function (event) {
       const input = event.target.closest('.ed-fp-input');
       if (!input) return;
@@ -2896,7 +2909,7 @@
       const vrItem = event.target.closest('.ed-varchange .ed-fp-item[data-vr]');
       if (vrItem) {
         event.preventDefault();
-        event.stopPropagation();
+        // 注意：不去 stopPropagation，让事件继续冒泡让外部"点下拉外关闭"逻辑也能运行
         const picker = vrItem.closest('.ed-varchange');
         if (picker) varchangeInsert(picker, vrItem.dataset.vr);
         return;
