@@ -261,37 +261,6 @@
     '</div>';
   }
 
-  /* 数值变更输入组件：一个 input + 点击弹出已有属性下拉，点属性自动插入"属性名+1" */
-  function varChangeInputHtml(setValue, attrs) {
-    const text = varChangeText(setValue);
-    const vars = (Array.isArray(draft && draft.vars) ? draft.vars : []).slice().sort(function (a, b) {
-      return String(a.id).localeCompare(String(b.id));
-    });
-
-    let dropHtml = '';
-    if (vars.length) {
-      dropHtml += '<div class="ed-fp-group"><div class="ed-fp-group-title">已有属性</div>' +
-        vars.map(function (v) {
-          const label = esc(v.name || v.id);
-          return '<button type="button" class="ed-fp-item" data-vr="' + esc(v.id) + '" title="插入 ' + esc(v.id) + '+1">' +
-            label + '<span class="ed-fp-sug">+1</span></button>';
-        }).join('') +
-      '</div>';
-    } else {
-      dropHtml += '<div class="ed-fp-empty">还没有任何属性。先去左侧「属性」tab 添加。</div>';
-    }
-    dropHtml += '<div class="ed-fp-group"><div class="ed-fp-group-title">语法提示</div>' +
-      '<span class="ed-fp-sug-help">金币+1 累加 · 金币-2 减少 · 金币=3 设为 3</span>' +
-    '</div>';
-
-    return '<div class="ed-flag-picker ed-varchange" ' + (attrs || '') + '>' +
-      '<div class="ed-fp-tags">' +
-        '<input type="text" class="ed-fp-input ed-input" data-nv-input value="' + esc(text) + '" placeholder="例如：金币+1, 好感-1">' +
-      '</div>' +
-      '<div class="ed-fp-dropdown" hidden>' + dropHtml + '</div>' +
-    '</div>';
-  }
-
   function renderFlagPickerDropdown(container, knownObj, currentList, query) {
     const drop = container.querySelector('.ed-fp-dropdown');
     const q = String(query || '').trim().toLowerCase();
@@ -1050,8 +1019,8 @@
         '</div>' +
 
         '<label class="ed-field">进入时数值变更' +
-          varChangeInputHtml(node.set, 'data-nv="node"') +
-          '<span class="ed-hint">点击文本框下拉选择已有属性，自动插入 +1/-2/=3。+1 累加、-2 减少、=3 直接设为 3。</span>' +
+          '<input class="ed-input" data-nv="node" value="' + esc(varChangeText(node.set)) + '" placeholder="例如：金币+1, 好感=3, 耐力-2">' +
+          '<span class="ed-hint">只对「属性」里定义的数值生效。+1 累加、-2 减少、=3 直接设为 3；条件里可写 金币>=3。</span>' +
         '</label>' +
 
         '<label class="ed-check">' +
@@ -1147,7 +1116,7 @@
           '</div>' +
         '</div>' +
         '<label class="ed-field">选中时数值变更' +
-          varChangeInputHtml(choice.set, 'data-nv="choice" data-i="' + index + '"') +
+          '<input class="ed-input" data-nv="choice" data-i="' + index + '" value="' + esc(varChangeText(choice.set)) + '" placeholder="例如：金币+1, 好感-1">' +
         '</label>' +
         (isBranch
           ? '<div class="ed-branches">' + branchRows +
@@ -2791,19 +2760,6 @@
       const knownObj = collectPickerNamesFor(container);
       renderFlagPickerDropdown(container, knownObj, flagPickerValues(container), input.value);
     }
-
-    // 把 varName+1 智能追加到数值变更文本框（处理逗号/空格分隔）
-    function varchangeInsert(picker, varName) {
-      const input = picker.querySelector('.ed-fp-input');
-      if (!input) return;
-      const cur = String(input.value || '').trim();
-      const fragment = varName + '+1';
-      input.value = cur ? (cur + ', ' + fragment) : fragment;
-      // 触发 input 事件以保存
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
-    }
-
     // 滚动/尺寸变化时收起，避免 fixed 下拉与输入框错位
     main.addEventListener('scroll', hideAllDropdowns, true);
     window.addEventListener('resize', hideAllDropdowns);
@@ -2812,13 +2768,6 @@
       if (!input) return;
       const picker = input.closest('.ed-flag-picker');
       if (!picker) return;
-      if (picker.classList.contains('ed-varchange')) {
-        // 数值变更组件：focus 时显示它自己的静态 dropdown
-        hideAllDropdowns();
-        const drop = picker.querySelector('.ed-fp-dropdown');
-        if (drop) drop.hidden = false;
-        return;
-      }
       openPicker(picker, input);
     });
     main.addEventListener('click', function (event) {
@@ -2826,12 +2775,6 @@
       if (!input) return;
       const picker = input.closest('.ed-flag-picker');
       if (!picker) return;
-      if (picker.classList.contains('ed-varchange')) {
-        if (document.activeElement !== input) input.focus();
-        const drop = picker.querySelector('.ed-fp-dropdown');
-        if (drop) drop.hidden = false;
-        return;
-      }
       // 确保聚焦，某些情况下点击不会自动 focus
       if (document.activeElement !== input) input.focus();
       openPicker(picker, input);
@@ -2842,7 +2785,6 @@
       if (!input) return;
       const picker = input.closest('.ed-flag-picker');
       if (!picker) return;
-      if (picker.classList.contains('ed-varchange')) return; // 不走 flag picker 动态搜索
       renderFlagPickerDropdown(picker, collectPickerNamesFor(picker), flagPickerValues(picker), input.value);
     });
 
@@ -2862,14 +2804,6 @@
       if (!input) return;
       const picker = input.closest('.ed-flag-picker');
       if (!picker) return;
-      if (picker.classList.contains('ed-varchange')) {
-        // 数值变更组件：只处理 Escape
-        if (event.key === 'Escape') {
-          picker.querySelector('.ed-fp-dropdown').hidden = true;
-          input.blur();
-        }
-        return;
-      }
       if (event.key === 'Enter') {
         event.preventDefault();
         const v = input.value.trim();
@@ -2886,15 +2820,6 @@
 
     // 点击 picker 内部的 item（下拉选项）或 tag 上的 ×
     document.addEventListener('click', function (event) {
-      // 数值变更组件：点了下拉里的属性 → 插入 "属性名+1"
-      const vrItem = event.target.closest('.ed-varchange .ed-fp-item[data-vr]');
-      if (vrItem) {
-        event.preventDefault();
-        event.stopPropagation();
-        const picker = vrItem.closest('.ed-varchange');
-        if (picker) varchangeInsert(picker, vrItem.dataset.vr);
-        return;
-      }
       // 点击下拉外关闭
       const anyDrop = event.target.closest('.ed-fp-dropdown');
       const anyPicker = event.target.closest('.ed-flag-picker');
@@ -2944,25 +2869,19 @@
       }
     }
 
-    // 数值变更：新组件里 input 在 .ed-varchange 容器内部
-    const nvWrap = target.closest && target.closest('.ed-varchange[data-nv]');
-    if (nvWrap) {
-      const nvType = nvWrap.dataset.nv;
-      const nvInput = nvWrap.querySelector('.ed-fp-input');
-      if (nvInput) {
-        if (nvType === 'node') {
-          const node = draft.nodes[selectedNode];
-          if (node) {
-            node.set = mergeVarChanges(node.set, parseVarChanges(nvInput.value));
-            markDirty();
-          }
-        } else if (nvType === 'choice') {
-          const choice = ((draft.nodes[selectedNode] || {}).choices || [])[Number(nvWrap.dataset.i)];
-          if (choice) {
-            choice.set = mergeVarChanges(choice.set, parseVarChanges(nvInput.value));
-            markDirty();
-          }
-        }
+    if (target.dataset.nv === 'node') {
+      const node = draft.nodes[selectedNode];
+      if (node) {
+        node.set = mergeVarChanges(node.set, parseVarChanges(target.value));
+        markDirty();
+      }
+      return;
+    }
+    if (target.dataset.nv === 'choice') {
+      const choice = ((draft.nodes[selectedNode] || {}).choices || [])[Number(target.dataset.i)];
+      if (choice) {
+        choice.set = mergeVarChanges(choice.set, parseVarChanges(target.value));
+        markDirty();
       }
       return;
     }

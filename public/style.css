@@ -1355,32 +1355,6 @@ textarea.ed-input {
   line-height: 1.4;
 }
 
-/* 数值变更组件专用 */
-.ed-varchange {
-  position: relative;
-}
-.ed-varchange .ed-fp-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.ed-varchange .ed-fp-sug {
-  font-size: 10px;
-  background: var(--accent-dark);
-  color: var(--accent-light);
-  padding: 1px 6px;
-  border-radius: 8px;
-  opacity: 0.7;
-}
-.ed-varchange .ed-fp-sug-help {
-  display: block;
-  font-size: 11px;
-  color: var(--faint);
-  line-height: 1.5;
-  padding: 2px 4px;
-}
-
 .ed-inline {
   display: flex;
   gap: 6px;
