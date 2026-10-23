@@ -28,10 +28,13 @@ export async function onRequestPost({ request, env }) {
   const title = String(body.title || '').trim().slice(0, 60);
   if (!title) return json({ error: '请填写游戏名称' }, 400);
 
+  const templates = ['blank', 'three-act', 'tutorial', 'multi-ending'];
+  const template = templates.indexOf(body.template) >= 0 ? body.template : 'blank';
+
   const id = randomHex(16);
   const code = randomCode(20);
   const now = Date.now();
-  const story = starterStory(title);
+  const story = starterStory(title, template);
 
   await env.DB.prepare(
     'INSERT INTO games (id, code, title, status, draft, published, version, draft_updated_at, ' +

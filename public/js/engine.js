@@ -15,6 +15,7 @@
   let previewExitCallback = null;
   let toastTimer = 0;
   let bound = false;
+  let debugMode = false;
 
   const gameScreen = document.getElementById('gameScreen');
   const sceneImg = document.getElementById('sceneImg');
@@ -79,11 +80,25 @@
     toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200);
   }
 
+  /* 数值属性的初始值来自剧情定义，存档里已有的值优先 */
+  function initVars() {
+    const vars = {};
+    const defs = Array.isArray(STORY.vars) ? STORY.vars : [];
+    defs.forEach(function (def) {
+      if (def && typeof def.id === 'string' && def.id) {
+        vars[def.id] = Number(def.init) || 0;
+      }
+    });
+    return vars;
+  }
+
   function newState() {
     return {
       version: SAVE_VERSION,
       node: STORY.start,
       flags: {},
+      vars: initVars(),
+      path: [],
       endings: [],
       startedAt: Date.now()
     };
@@ -99,6 +114,17 @@
         if (raw.flags[key]) fresh.flags[key] = true;
       });
     }
+    if (raw.vars && typeof raw.vars === 'object') {
+      Object.keys(raw.vars).forEach(function (key) {
+        const num = Number(raw.vars[key]);
+        if (isFinite(num)) fresh.vars[key] = num;
+      });
+    }
+    if (Array.isArray(raw.path)) {
+      fresh.path = raw.path.filter(function (id) {
+        return typeof id === 'string' && STORY.nodes[id];
+      }).slice(-200);
+    }
     if (Array.isArray(raw.endings)) {
       raw.endings.forEach(function (id) {
         if (STORY.endings.some(function (e) { return e.id === id; }) && fresh.endings.indexOf(id) === -1) {
@@ -113,14 +139,59 @@
 
   /* ---------------- 剧情引擎 ---------------- */
 
+  /* 条件项：旗标名 / !旗标名 / 数值比较（如 金币>=3、好感<2） */
+  const CMP_RE = /^(.+?)\s*(>=|<=|==|!=|>|<)\s*(-?\d+(?:\.\d+)?)$/;
+
+  function condOk(cond) {
+    if (typeof cond !== 'string') return false;
+    let text = cond.trim();
+    let negate = false;
+    if (text.charAt(0) === '!') { negate = true; text = text.slice(1).trim(); }
+
+    const match = text.match(CMP_RE);
+    let ok;
+    if (match) {
+      const left = Number(state.vars[match[1]]) || 0;
+      const right = Number(match[3]);
+      const op = match[2];
+      if (op === '>=') ok = left >= right;
+      else if (op === '<=') ok = left <= right;
+      else if (op === '>') ok = left > right;
+      else if (op === '<') ok = left < right;
+      else if (op === '==') ok = left === right;
+      else ok = left !== right;
+    } else {
+      ok = !!state.flags[text];
+    }
+    return negate ? !ok : ok;
+  }
+
   function flagsOk(req) {
     if (!req) return true;
     const list = Array.isArray(req) ? req : [req];
-    return list.every(function (flag) {
-      if (typeof flag === 'string' && flag.charAt(0) === '!') {
-        return !state.flags[flag.slice(1)];
+    return list.every(condOk);
+  }
+
+  /* 写入 set：true 记为旗标；数字直接赋值；"+1"/"-2" 相对加减；"=3" 绝对值 */
+  function applySet(set) {
+    if (!set || typeof set !== 'object') return;
+    Object.keys(set).forEach(function (key) {
+      const value = set[key];
+      if (typeof value === 'number' && isFinite(value)) {
+        state.vars[key] = value;
+        return;
       }
-      return !!state.flags[flag];
+      if (typeof value === 'string') {
+        if (/^[+\-]\d+(\.\d+)?$/.test(value)) {
+          state.vars[key] = (Number(state.vars[key]) || 0) + Number(value);
+          return;
+        }
+        if (/^=\d+(\.\d+)?$/.test(value)) {
+          state.vars[key] = Number(value.slice(1));
+          return;
+        }
+      }
+      state.flags[key] = true;
     });
   }
 
@@ -155,7 +226,10 @@
     const node = STORY.nodes[nodeId];
     if (!node) return;
     state.node = nodeId;
-    if (node.set) Object.assign(state.flags, node.set);
+    applySet(node.set);
+    if (!Array.isArray(state.path)) state.path = [];
+    if (state.path[state.path.length - 1] !== nodeId) state.path.push(nodeId);
+    if (state.path.length > 200) state.path = state.path.slice(-200);
     dirty = true;
 
     setScene(node.scene);
@@ -175,7 +249,71 @@
       renderChoices(node);
     }
 
+    renderDebug();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ---------------- 试玩调试面板 ---------------- */
+
+  function debugPanel() {
+    let panel = document.getElementById('debugPanel');
+    if (panel) return panel;
+    panel = document.createElement('div');
+    panel.id = 'debugPanel';
+    panel.className = 'debug-panel';
+    panel.hidden = true;
+    panel.addEventListener('click', function (event) {
+      const jump = event.target.closest('[data-dbg-jump]');
+      if (jump && STORY.nodes[jump.dataset.dbgJump]) renderNode(jump.dataset.dbgJump);
+    });
+    panel.addEventListener('change', function (event) {
+      const select = event.target.closest('[data-dbg-select]');
+      if (select && STORY.nodes[select.value]) renderNode(select.value);
+    });
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  function renderDebug() {
+    if (!debugMode || !state) return;
+    const panel = debugPanel();
+    panel.hidden = false;
+
+    const flags = Object.keys(state.flags || {}).filter(function (key) { return state.flags[key]; });
+    const vars = Object.keys(state.vars || {}).map(function (key) {
+      return key + ' = ' + state.vars[key];
+    });
+    const path = (state.path || []).map(function (id) {
+      return '<button type="button" class="debug-chip' + (id === state.node ? ' active' : '') +
+        '" data-dbg-jump="' + escapeHtml(id) + '">' + escapeHtml(id) + '</button>';
+    }).join('');
+
+    const nodeIds = Object.keys(STORY.nodes);
+    const options = nodeIds.map(function (id) {
+      return '<option value="' + escapeHtml(id) + '"' + (id === state.node ? ' selected' : '') + '>' + escapeHtml(id) + '</option>';
+    }).join('');
+
+    panel.innerHTML =
+      '<div class="debug-head"><span>调试面板</span>' +
+        '<select data-dbg-select class="debug-select">' + options + '</select>' +
+      '</div>' +
+      '<div class="debug-row"><span class="debug-label">当前节点</span><strong>' + escapeHtml(state.node || '—') + '</strong></div>' +
+      '<div class="debug-row"><span class="debug-label">路径</span><div class="debug-chips">' + (path || '<em>—</em>') + '</div></div>' +
+      '<div class="debug-row"><span class="debug-label">旗标</span><div class="debug-chips">' +
+        (flags.length ? flags.map(function (key) {
+          return '<span class="debug-chip on">' + escapeHtml(key) + '</span>';
+        }).join('') : '<em>无</em>') + '</div></div>' +
+      '<div class="debug-row"><span class="debug-label">数值</span><div class="debug-chips">' +
+        (vars.length ? vars.map(function (row) {
+          return '<span class="debug-chip var">' + escapeHtml(row) + '</span>';
+        }).join('') : '<em>无</em>') + '</div></div>';
+  }
+
+  function setDebug(on) {
+    debugMode = !!on;
+    const panel = document.getElementById('debugPanel');
+    if (panel) panel.hidden = !debugMode;
+    if (debugMode) renderDebug();
   }
 
   function renderChoices(node) {
@@ -210,7 +348,7 @@
   }
 
   function choose(choice) {
-    if (choice.set) Object.assign(state.flags, choice.set);
+    applySet(choice.set);
     const nextId = resolveNext(choice.next);
     if (!nextId || !STORY.nodes[nextId]) return;
     renderNode(nextId);
@@ -227,6 +365,8 @@
   function restartRun() {
     state.node = STORY.start;
     state.flags = {};
+    state.vars = initVars();
+    state.path = [];
     renderNode(STORY.start);
     saveNow();
   }
@@ -328,11 +468,12 @@
 
   /* ---------------- 试玩 ---------------- */
 
-  function preview(nextStory, onExit) {
+  function preview(nextStory, onExit, options) {
     if (!nextStory || !nextStory.nodes || !nextStory.nodes[nextStory.start]) {
       toast('草稿起点节点无效，无法试玩');
       return;
     }
+    const opts = options || {};
 
     bind();
 
@@ -346,6 +487,17 @@
 
     STORY = nextStory;
     state = newState();
+    if (opts.flags && typeof opts.flags === 'object') {
+      Object.keys(opts.flags).forEach(function (key) { if (key) state.flags[key] = true; });
+    }
+    if (opts.vars && typeof opts.vars === 'object') {
+      Object.keys(opts.vars).forEach(function (key) {
+        const num = Number(opts.vars[key]);
+        if (key && isFinite(num)) state.vars[key] = num;
+      });
+    }
+    if (opts.start && STORY.nodes[opts.start]) state.node = opts.start;
+    setDebug(!!opts.debug);
     if (window.Theme) window.Theme.set(STORY.theme || 'amber');
     applyFont(STORY.font || 'default');
 
@@ -364,6 +516,7 @@
     const callback = previewExitCallback;
 
     previewing = false;
+    setDebug(false);
     STORY = previewBackup.story;
     state = previewBackup.state;
     if (window.Theme) window.Theme.set(previewBackup.theme);

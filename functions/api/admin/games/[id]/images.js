@@ -24,6 +24,39 @@ const CONTENT_TYPES = {
   webp: 'image/webp'
 };
 
+export async function onRequestGet({ request, env, params }) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return json({ error: '需要管理员权限' }, 401);
+  if (!env.IMAGES) return json({ error: '服务端未绑定图片存储（IMAGES）' }, 500);
+
+  const game = await gameById(env, params.id);
+  if (!game) return json({ error: '游戏不存在' }, 404);
+
+  const prefix = 'g/' + params.id + '/';
+  const images = [];
+  let cursor;
+  for (let i = 0; i < 10; i++) {
+    const page = await env.IMAGES.list({ prefix: prefix, cursor: cursor, limit: 1000 });
+    (page.keys || []).forEach(item => {
+      const meta = item.metadata || {};
+      images.push({
+        key: item.name,
+        url: '/api/images/' + item.name,
+        name: meta.originalName || item.name.split('/').pop(),
+        size: Number(meta.size) || 0,
+        uploadedAt: Number(meta.uploadedAt) || 0
+      });
+    });
+    if (page.list_complete) break;
+    cursor = page.cursor;
+    if (!cursor) break;
+  }
+
+  images.sort((a, b) => b.uploadedAt - a.uploadedAt);
+
+  return json({ images });
+}
+
 export async function onRequestPost({ request, env, params }) {
   const admin = await requireAdmin(request, env);
   if (!admin) return json({ error: '需要管理员权限' }, 401);
@@ -53,11 +86,14 @@ export async function onRequestPost({ request, env, params }) {
   if (!ext) return json({ error: '仅支持 JPG、PNG、GIF、WebP 图片' }, 400);
 
   const key = 'g/' + params.id + '/' + crypto.randomUUID() + '.' + ext;
+  const now = Date.now();
   await env.IMAGES.put(key, buffer, {
     metadata: {
       contentType: CONTENT_TYPES[ext],
       uploader: admin.username,
-      originalName: String(file.name || '').slice(0, 200)
+      originalName: String(file.name || '').slice(0, 200),
+      size: buffer.byteLength,
+      uploadedAt: now
     }
   });
 
@@ -65,7 +101,9 @@ export async function onRequestPost({ request, env, params }) {
     ok: true,
     key,
     url: '/api/images/' + key,
+    name: String(file.name || '').slice(0, 200),
     size: buffer.byteLength,
-    type: CONTENT_TYPES[ext]
+    type: CONTENT_TYPES[ext],
+    uploadedAt: now
   });
 }

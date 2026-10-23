@@ -76,7 +76,7 @@
       if (!currentGame) return Promise.reject(new Error('还没有选择游戏'));
       return uploadImage('admin/games/' + currentGame.id + '/images', file);
     },
-    preview: function (story, onExit) {
+    preview: function (story, onExit, options) {
       if (currentGame) {
         const brand = document.querySelector('.brand-name');
         if (brand) brand.textContent = currentGame.title;
@@ -85,7 +85,7 @@
       window.Engine.preview(story, function () {
         consoleScreen.hidden = false;
         if (onExit) onExit();
-      });
+      }, options);
     },
     applyPublishedStory: function (story, version) {
       window.Engine.applyStory(story);
@@ -215,8 +215,16 @@
       return;
     }
 
+    const tpl = prompt(
+      '选择初始模板：\n1 = 空白（起点 + 结局）\n2 = 三幕式\n3 = 教程（演示旗标与数值）\n4 = 多结局\n\n输入 1-4，留空默认 1',
+      '1'
+    );
+    if (tpl === null) return;
+    const templateMap = { '1': 'blank', '2': 'three-act', '3': 'tutorial', '4': 'multi-ending' };
+    const template = templateMap[String(tpl).trim()] || 'blank';
+
     try {
-      const data = await api('admin/games', { method: 'POST', body: JSON.stringify({ title: name }) });
+      const data = await api('admin/games', { method: 'POST', body: JSON.stringify({ title: name, template: template }) });
       await loadGames();
       const game = byId(data.game.id);
       if (game) openEditor(game);

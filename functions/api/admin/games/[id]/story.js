@@ -19,8 +19,18 @@ export async function onRequestGet({ request, env, params }) {
     }
   }
 
+  let published = null;
+  if (row.published) {
+    try {
+      published = JSON.parse(row.published);
+    } catch {
+      published = null;
+    }
+  }
+
   return json({
     draft,
+    published,
     version: row.version || 0,
     status: row.status,
     draft_updated_at: row.draft_updated_at || null,

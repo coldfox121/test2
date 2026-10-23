@@ -11,6 +11,27 @@ function isFlagList(value) {
   return Array.isArray(value) && value.every(item => typeof item === 'string');
 }
 
+// set 的值：true 记为旗标；数字直接赋值；"+1"/"-2" 相对加减；"=3" 绝对值
+function isSetValue(value) {
+  if (value === true) return true;
+  if (typeof value === 'number') return isFinite(value);
+  if (typeof value === 'string') return /^[+\-=]\d+(\.\d+)?$/.test(value);
+  return false;
+}
+
+function checkSet(set, label, errors) {
+  if (set === undefined) return;
+  if (!isPlainObject(set)) {
+    errors.push(label + ' 的 set 必须是对象');
+    return;
+  }
+  Object.keys(set).forEach(key => {
+    if (!isSetValue(set[key])) {
+      errors.push(label + ' 的 set 里 "' + key + '" 只能是 true、数字或 +1/-1/=3 形式的文字');
+    }
+  });
+}
+
 export function validateStory(story) {
   const errors = [];
 
@@ -42,6 +63,36 @@ export function validateStory(story) {
         }
         if (item.name !== undefined && typeof item.name !== 'string') errors.push('物品 "' + (item.id || index) + '" 的名称必须是文字');
         if (item.note !== undefined && typeof item.note !== 'string') errors.push('物品 "' + (item.id || index) + '" 的说明必须是文字');
+      });
+    }
+  }
+
+  // 数值属性（可选）
+  if (story.vars !== undefined) {
+    if (!Array.isArray(story.vars)) {
+      errors.push('vars 必须是数组');
+    } else {
+      const varIds = new Set();
+      story.vars.forEach((item, index) => {
+        if (!isPlainObject(item)) {
+          errors.push('第 ' + (index + 1) + ' 个属性格式错误');
+          return;
+        }
+        if (typeof item.id !== 'string' || !item.id) {
+          errors.push('第 ' + (index + 1) + ' 个属性缺少 id');
+        } else if (!/^[A-Za-z0-9_\-\u4e00-\u9fff]+$/.test(item.id)) {
+          errors.push('属性 id "' + item.id + '" 只能包含中文、字母、数字、下划线和短横线');
+        } else if (/[<>=!+\-]/.test(item.id)) {
+          errors.push('属性 id "' + item.id + '" 不能包含比较或运算符号');
+        } else if (varIds.has(item.id)) {
+          errors.push('属性 id "' + item.id + '" 重复');
+        } else {
+          varIds.add(item.id);
+        }
+        if (item.name !== undefined && typeof item.name !== 'string') errors.push('属性 "' + (item.id || index) + '" 的名称必须是文字');
+        if (item.init !== undefined && (typeof item.init !== 'number' || !isFinite(item.init))) {
+          errors.push('属性 "' + (item.id || index) + '" 的初始值必须是数字');
+        }
       });
     }
   }
@@ -105,6 +156,7 @@ export function validateStory(story) {
       errors.push(label + ' 引用了不存在的场景 "' + node.scene + '"');
     }
     if (node.set !== undefined && !isPlainObject(node.set)) errors.push(label + ' 的 set 必须是对象');
+    else checkSet(node.set, label, errors);
 
     if (node.ending) {
       if (!isPlainObject(node.ending)) {
@@ -141,6 +193,7 @@ export function validateStory(story) {
       if (!isFlagList(choice.req)) errors.push(choiceLabel + ' 的 req 必须是字符串或数组');
       if (!isFlagList(choice.hideUnless)) errors.push(choiceLabel + ' 的 hideUnless 必须是字符串或数组');
       if (choice.set !== undefined && !isPlainObject(choice.set)) errors.push(choiceLabel + ' 的 set 必须是对象');
+      else checkSet(choice.set, choiceLabel, errors);
       if (choice.lock !== undefined && typeof choice.lock !== 'string') errors.push(choiceLabel + ' 的 lock 必须是文字');
 
       const next = choice.next;
