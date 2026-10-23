@@ -1160,6 +1160,12 @@ textarea.ed-input {
   border-color: var(--accent-dark);
 }
 
+.ed-outline {
+  min-height: 420px;
+  line-height: 1.8;
+  font-family: var(--font-hand, inherit);
+}
+
 /* ---------- 旗标选择器 ---------- */
 .ed-flag-picker {
   margin-top: 5px;

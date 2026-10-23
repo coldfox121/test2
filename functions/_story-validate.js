@@ -16,6 +16,36 @@ export function validateStory(story) {
 
   if (!isPlainObject(story)) return ['剧情数据必须是对象'];
 
+  // 大纲（可选，纯文本）
+  if (story.outline !== undefined && typeof story.outline !== 'string') errors.push('outline 必须是文字');
+  if (typeof story.outline === 'string' && story.outline.length > 100000) errors.push('outline 超过 100000 字上限');
+
+  // 物品清单（可选）
+  if (story.items !== undefined) {
+    if (!Array.isArray(story.items)) {
+      errors.push('items 必须是数组');
+    } else {
+      const itemIds = new Set();
+      story.items.forEach((item, index) => {
+        if (!isPlainObject(item)) {
+          errors.push('第 ' + (index + 1) + ' 个物品格式错误');
+          return;
+        }
+        if (typeof item.id !== 'string' || !item.id) {
+          errors.push('第 ' + (index + 1) + ' 个物品缺少 id');
+        } else if (!/^[A-Za-z0-9_\-\u4e00-\u9fff]+$/.test(item.id)) {
+          errors.push('物品 id "' + item.id + '" 只能包含中文、字母、数字、下划线和短横线');
+        } else if (itemIds.has(item.id)) {
+          errors.push('物品 id "' + item.id + '" 重复');
+        } else {
+          itemIds.add(item.id);
+        }
+        if (item.name !== undefined && typeof item.name !== 'string') errors.push('物品 "' + (item.id || index) + '" 的名称必须是文字');
+        if (item.note !== undefined && typeof item.note !== 'string') errors.push('物品 "' + (item.id || index) + '" 的说明必须是文字');
+      });
+    }
+  }
+
   if (typeof story.start !== 'string' || !story.start) errors.push('缺少起点节点 start');
   if (!isPlainObject(story.scenes)) errors.push('scenes 必须是对象');
   if (!isPlainObject(story.nodes)) errors.push('nodes 必须是对象');

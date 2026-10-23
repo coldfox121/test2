@@ -47,6 +47,31 @@
       .replace(/'/g, '&#39;');
   }
 
+  /* ---- 正文内联格式：**粗体**、*斜体*、~~删除线~~、[颜色]文字[/] ---- */
+  function renderInline(raw) {
+    let s = escapeHtml(raw || '');
+    // 颜色档位
+    s = s.replace(/\[accent\]([\s\S]*?)\[\/\]/g, '<span class="story-c-accent">$1</span>');
+    s = s.replace(/\[muted\]([\s\S]*?)\[\/\]/g, '<span class="story-c-muted">$1</span>');
+    s = s.replace(/\[faint\]([\s\S]*?)\[\/\]/g,  '<span class="story-c-faint">$1</span>');
+    s = s.replace(/\[danger\]([\s\S]*?)\[\/\]/g, '<span class="story-c-danger">$1</span>');
+    // 删除线、粗体、斜体（注意顺序：先长后短，避免 ** 被 * 吃掉）
+    s = s.replace(/~~([\s\S]*?)~~/g, '<del>$1</del>');
+    s = s.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*([\s\S]*?)\*/g, '<em>$1</em>');
+    return s;
+  }
+
+  /* ---- 字体：故事级，支持 default/serif/sans/mono/hand ---- */
+  function applyFont(fontId) {
+    const valid = ['default', 'serif', 'sans', 'mono', 'hand'];
+    const id = valid.indexOf(fontId) >= 0 ? fontId : 'default';
+    valid.forEach(function (f) {
+      if (f !== 'default') storyText.classList.remove('story-f-' + f);
+    });
+    if (id !== 'default') storyText.classList.add('story-f-' + id);
+  }
+
   function toast(message) {
     clearTimeout(toastTimer);
     toastEl.textContent = message;
@@ -136,7 +161,7 @@
     setScene(node.scene);
     storyText.innerHTML = String(node.text || '')
       .split(/\n\n+/)
-      .map(function (p) { return '<p>' + escapeHtml(p) + '</p>'; })
+      .map(function (p) { return '<p>' + renderInline(p) + '</p>'; })
       .join('');
 
     if (node.ending) {
@@ -252,6 +277,27 @@
     modalBody.innerHTML = '';
   }
 
+  function openItems() {
+    const items = Array.isArray(STORY.items) ? STORY.items : [];
+    let html = '<section class="modal-section">';
+    if (!items.length) {
+      html += '<p class="setting-hint">这个故事没有物品设定。</p>';
+    } else {
+      let owned = 0;
+      const rows = items.map(function (item) {
+        const has = state && !!state.flags[item.id];
+        if (has) owned++;
+        return '<li class="ending-item' + (has ? '' : ' locked') + '">' +
+          '<span class="ending-name">' + (has ? escapeHtml(item.name || item.id) : '？？？') + '</span>' +
+          '<span class="ending-hint">' + (has ? escapeHtml(item.note || '') : '尚未获得') + '</span>' +
+          '</li>';
+      }).join('');
+      html += '<p class="setting-hint">已获得 ' + owned + ' / ' + items.length + '</p>' +
+        '<ul class="ending-list">' + rows + '</ul>';
+    }
+    openModal('物品栏', html + '</section>');
+  }
+
   function openCollection() {
     const unlocked = state ? state.endings.length : 0;
     let html = '<section class="modal-section">' +
@@ -301,6 +347,7 @@
     STORY = nextStory;
     state = newState();
     if (window.Theme) window.Theme.set(STORY.theme || 'amber');
+    applyFont(STORY.font || 'default');
 
     previewBar.hidden = false;
     if (brandName && STORY.title) brandName.textContent = STORY.title;
@@ -320,6 +367,7 @@
     STORY = previewBackup.story;
     state = previewBackup.state;
     if (window.Theme) window.Theme.set(previewBackup.theme);
+    applyFont((STORY && STORY.font) || 'default');
     previewBackup = null;
     previewExitCallback = null;
     previewBar.hidden = true;
@@ -358,7 +406,8 @@
 
     document.querySelectorAll('[data-modal]').forEach(function (button) {
       button.addEventListener('click', function () {
-        if (button.dataset.modal === 'collection') openCollection();
+        if (button.dataset.modal === 'items') openItems();
+        else if (button.dataset.modal === 'collection') openCollection();
         else openSettings();
       });
     });
@@ -404,6 +453,7 @@
     bind();
     STORY = story;
     if (window.Theme) window.Theme.set(STORY.theme || 'amber');
+    applyFont(STORY.font || 'default');
     saveKey = opts.saveKey || '';
     if (brandName && opts.title) brandName.textContent = opts.title;
     if (opts.title) document.title = opts.title;

@@ -21,6 +21,7 @@
   let selectedNode = null;
   let selectedScene = null;
   let selectedEnding = null;
+  let selectedItemId = null;
   let nodeFilter = '';
   let dirty = false;
   let draftSaved = false;
@@ -453,6 +454,22 @@
       return;
     }
 
+    if (tab === 'outline') {
+      side.innerHTML =
+        '<div class="ed-side-info">' +
+          '<p>大纲字数</p><strong>' + outlineText().length + ' / 100000</strong>' +
+          '<p>说明</p><span>仅作者可见，玩家看不到这里的内容。可自由记录 NPC 设定、情节梳理、结局构思等，自动随草稿保存。</span>' +
+        '</div>';
+      return;
+    }
+
+    if (tab === 'items') {
+      side.innerHTML =
+        '<div class="ed-side-head"><button type="button" class="btn-secondary" data-act="add-item">+ 物品</button></div>' +
+        '<div class="ed-list">' + itemListHtml() + '</div>';
+      return;
+    }
+
     if (tab === 'check') {
       const result = validateDraft();
       side.innerHTML =
@@ -506,11 +523,13 @@
   /* ---------------- 主区域 ---------------- */
 
   function renderMain() {
-    if (tab === 'nodes') renderNodeMain();
-    else if (tab === 'scenes') renderSceneMain();
-    else if (tab === 'endings') renderEndingMain();
-    else if (tab === 'check') renderCheckMain();
-    else renderVersionsMain();
+    if (tab === 'nodes') return renderNodeMain();
+    if (tab === 'scenes') return renderSceneMain();
+    if (tab === 'endings') return renderEndingMain();
+    if (tab === 'items') return renderItemsMain();
+    if (tab === 'outline') return renderOutlineMain();
+    if (tab === 'check') return renderCheckMain();
+    renderVersionsMain();
   }
 
   function ensureNodeSelected() {
@@ -764,6 +783,81 @@
 
       '<p class="ed-hint">被 ' + used.length + ' 个节点引用' +
         (used.length ? '：' + used.map(esc).join('、') : '') + '</p>';
+  }
+
+  function outlineText() {
+    return draft && typeof draft.outline === 'string' ? draft.outline : '';
+  }
+
+  function renderOutlineMain() {
+    main.innerHTML =
+      '<div class="ed-form-head"><h3>大纲与设定</h3></div>' +
+      '<textarea id="edOutline" class="ed-input ed-outline" rows="26" placeholder="在这里自由记录：&#10;· NPC 设定（名字、性格、与主角的关系）&#10;· 情节梳理（主线、伏笔、时间线）&#10;· 结局构思（触发条件、达成路径）&#10;&#10;只有你能看到这里的内容，玩家不会读到。"> ' + '' + '</textarea>' +
+      '<p class="ed-hint">内容随草稿自动保存，不参与校验和发布。</p>';
+    document.getElementById('edOutline').value = outlineText();
+  }
+
+  function ensureItemsArray() {
+    if (!Array.isArray(draft.items)) draft.items = [];
+    return draft.items;
+  }
+
+  function itemListHtml() {
+    const items = Array.isArray(draft.items) ? draft.items : [];
+    if (!items.length) return '<p class="ed-hint">还没有物品。点击左侧「+ 物品」添加。</p>';
+    return items.map(function (item, index) {
+      return '<button type="button" class="ed-list-item' + (item.id === selectedItemId ? ' active' : '') +
+        '" data-item="' + esc(item.id) + '">' +
+        '<span class="ed-list-name">' + esc(item.name || item.id) + '</span>' +
+        '<span class="ed-list-tag">' + esc(item.id) + '</span>' +
+      '</button>';
+    }).join('');
+  }
+
+  function renderItemsMain() {
+    const items = ensureItemsArray();
+    if (!items.length) {
+      main.innerHTML = '<p class="ed-hint">还没有物品。点击左侧「+ 物品」添加。</p>';
+      return;
+    }
+    if (!selectedItemId || !items.some(function (item) { return item.id === selectedItemId; })) {
+      selectedItemId = items[0].id;
+    }
+    const item = items.find(function (item) { return item.id === selectedItemId; });
+    // 该物品对应的旗标被哪些地方设置
+    const setters = [];
+    Object.keys(draft.nodes).forEach(function (id) {
+      const node = draft.nodes[id];
+      if (node.set && node.set[item.id]) setters.push('节点 ' + id);
+      (node.choices || []).forEach(function (choice, ci) {
+        if (choice.set && choice.set[item.id]) setters.push('节点 ' + id + ' 选项 ' + (ci + 1));
+      });
+    });
+
+    main.innerHTML =
+      '<div class="ed-form-head"><h3>物品 ' + esc(item.name || item.id) + '</h3>' +
+        '<div class="ed-form-actions">' +
+          '<button type="button" class="btn-secondary danger" data-act="delete-item">删除</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<label class="ed-field">物品 ID（旗标名）' +
+        '<div class="ed-inline">' +
+          '<input id="edItemId" class="ed-input" value="' + esc(item.id) + '">' +
+          '<button type="button" class="btn-secondary" data-act="rename-item">应用</button>' +
+        '</div>' +
+        '<span class="ed-hint">物品用同名旗标判断是否已获得：在节点或选项的「设置旗标」里选中这个名字，玩家就会在物品栏看到它。</span>' +
+      '</label>' +
+
+      '<label class="ed-field">物品名称' +
+        '<input class="ed-input" data-itf="name" value="' + esc(item.name || '') + '">' +
+      '</label>' +
+
+      '<label class="ed-field">物品说明' +
+        '<textarea class="ed-input" rows="3" data-itf="note" placeholder="玩家在物品栏里看到的描述文字">' + esc(item.note || '') + '</textarea>' +
+      '</label>' +
+
+      '<p class="ed-hint">设置该旗标的地方：' + (setters.length ? esc(setters.join('、')) : '还没有任何地方设置，玩家不会获得它') + '</p>';
   }
 
   function renderCheckMain() {
@@ -1235,6 +1329,48 @@
     render();
   }
 
+  function addItem() {
+    const items = ensureItemsArray();
+    const pool = {};
+    items.forEach(function (item) { pool[item.id] = true; });
+    const id = uniqueId('item', pool);
+    items.push({ id: id, name: '新物品', note: '' });
+    selectedItemId = id;
+    markDirty();
+    render();
+  }
+
+  function renameItem() {
+    const input = document.getElementById('edItemId');
+    if (!input) return;
+    const next = input.value.trim();
+    const current = selectedItemId;
+    const items = Array.isArray(draft.items) ? draft.items : [];
+
+    if (!next) return toast('物品 ID 不能为空');
+    if (!NODE_ID_RE.test(next)) return toast('物品 ID 只能包含中文、字母、数字、下划线和短横线');
+    if (next === current) return;
+    if (items.some(function (item) { return item.id === next; })) return toast('物品 ID 已存在');
+
+    const item = items.find(function (item) { return item.id === current; });
+    if (!item) return;
+    item.id = next;
+    selectedItemId = next;
+    markDirty();
+    render();
+  }
+
+  function deleteItem() {
+    const items = Array.isArray(draft.items) ? draft.items : [];
+    const item = items.find(function (item) { return item.id === selectedItemId; });
+    if (!item) return;
+    if (!confirm('确定删除物品「' + (item.name || item.id) + '」吗？剧情里已设置的旗标不受影响，只是不再显示在物品栏。')) return;
+    draft.items = items.filter(function (item) { return item.id !== selectedItemId; });
+    selectedItemId = draft.items[0] ? draft.items[0].id : null;
+    markDirty();
+    render();
+  }
+
   function renameEnding() {
     const input = document.getElementById('edEndingId');
     if (!input) return;
@@ -1381,6 +1517,12 @@
         render();
         return;
       }
+      const item = event.target.closest('[data-item]');
+      if (item) {
+        selectedItemId = item.dataset.item;
+        render();
+        return;
+      }
 
       const button = event.target.closest('[data-act]');
       if (!button) return;
@@ -1389,6 +1531,7 @@
       if (action === 'add-node') addNode();
       else if (action === 'add-scene') addScene();
       else if (action === 'add-ending') addEnding();
+      else if (action === 'add-item') addItem();
       else if (action === 'recheck') render();
       else if (action === 'refresh-versions') {
         versionsCache = null;
@@ -1500,6 +1643,14 @@
   function onMainInput(event) {
     const target = event.target;
 
+    if (target.id === 'edOutline') {
+      draft.outline = target.value.slice(0, 100000);
+      markDirty();
+      const count = side.querySelector('.ed-side-info strong');
+      if (count) count.textContent = draft.outline.length + ' / 100000';
+      return;
+    }
+
     if (target.dataset.nf === 'text') {
       draft.nodes[selectedNode].text = target.value;
       markDirty();
@@ -1527,6 +1678,17 @@
       if (ending) { ending.title = target.value; markDirty(); }
       return;
     }
+    if (target.dataset.itf) {
+      const items = Array.isArray(draft.items) ? draft.items : [];
+      const item = items.find(function (item) { return item.id === selectedItemId; });
+      if (item) {
+        if (target.dataset.itf === 'name') item.name = target.value;
+        else if (target.dataset.itf === 'note') item.note = target.value;
+        markDirty();
+      }
+      return;
+    }
+
     if (target.dataset.ef === 'hint') {
       const ending = draft.endings.find(function (item) { return item.id === selectedEnding; });
       if (ending) { ending.hint = target.value; markDirty(); }
@@ -1734,6 +1896,8 @@
 
     else if (action === 'rename-ending') renameEnding();
     else if (action === 'delete-ending') deleteEnding();
+    else if (action === 'rename-item') renameItem();
+    else if (action === 'delete-item') deleteItem();
     else if (action === 'move-ending') moveEnding(target.dataset.dir);
 
     else if (action === 'restore-version') restoreVersion(target.dataset.id);
