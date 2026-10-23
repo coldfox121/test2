@@ -764,15 +764,18 @@
 
     if (tab === 'flags') {
       const usage = flagUsage();
-      const names = Array.from(new Set(Object.keys(usage).concat(varNames()))).sort();
+      const definedVars = new Set(varNames());
+      // 旗标 tab 只列真正的旗标：排除已定义的数值属性（归属性 tab）
+      const names = Object.keys(usage)
+        .filter(function (name) { return !definedVars.has(name); })
+        .sort();
       if (!selectedFlag || names.indexOf(selectedFlag) === -1) selectedFlag = names[0] || null;
 
       const rows = names.map(function (name) {
         const rec = usage[name] || { sets: [], refs: [] };
         let badge = '';
-        if (usage[name] && !rec.sets.length) badge = '<span class="ed-badge warn">仅引用</span>';
-        else if (usage[name] && !rec.refs.length) badge = '<span class="ed-badge">仅设置</span>';
-        else if (varNames().indexOf(name) !== -1) badge = '<span class="ed-badge ok">数值</span>';
+        if (!rec.sets.length) badge = '<span class="ed-badge warn">仅引用</span>';
+        else if (!rec.refs.length) badge = '<span class="ed-badge">仅设置</span>';
         return '<button type="button" class="ed-list-item' + (name === selectedFlag ? ' active' : '') +
           '" data-flag="' + esc(name) + '">' +
           '<span class="ed-list-name">' + esc(name) + '</span>' + badge +
@@ -1315,15 +1318,18 @@
 
   function renderFlagsMain() {
     const usage = flagUsage();
-    const names = Array.from(new Set(Object.keys(usage).concat(varNames()))).sort();
+    const definedVars = new Set(varNames());
+    // 旗标 tab 只列真正的旗标：排除已在 draft.vars 里定义的数值属性
+    const names = Object.keys(usage)
+      .filter(function (name) { return !definedVars.has(name); })
+      .sort();
     if (!names.length) {
-      main.innerHTML = '<p class="ed-hint">还没有任何旗标。在节点或选项的「设置旗标」里新建第一个旗标吧。</p>';
+      main.innerHTML = '<p class="ed-hint">还没有任何旗标。在节点或选项的「设置旗标」里新建第一个旗标吧。<br>数值属性去左侧「属性」tab 管理。</p>';
       return;
     }
     if (!selectedFlag || names.indexOf(selectedFlag) === -1) selectedFlag = names[0];
 
     const rec = usage[selectedFlag] || { sets: [], refs: [] };
-    const isVar = varNames().indexOf(selectedFlag) !== -1;
 
     function usageRows(list, emptyText) {
       if (!list.length) return '<p class="ed-hint">' + emptyText + '</p>';
@@ -1352,9 +1358,7 @@
     }).join('') || '<p class="ed-hint">还没有定义结局。</p>';
 
     main.innerHTML =
-      '<div class="ed-form-head"><h3>' + esc(selectedFlag) + '</h3>' +
-        (isVar ? '<span class="ed-badge ok">数值属性</span>' : '') +
-      '</div>' +
+      '<div class="ed-form-head"><h3>' + esc(selectedFlag) + '</h3></div>' +
       '<div class="ed-diff-summary">' +
         '<span>设置于 <strong>' + rec.sets.length + '</strong> 处</span>' +
         '<span>被引用 <strong>' + rec.refs.length + '</strong> 处</span>' +
