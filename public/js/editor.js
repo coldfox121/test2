@@ -712,9 +712,7 @@
               ? '<button type="button" class="btn-secondary" data-act="multi-all">全选</button>' +
                 '<button type="button" class="btn-secondary" data-act="multi-none">清空</button>'
               : '') +
-          '</div>' +
-          '<label class="ed-side-label">起点节点</label>' +
-          '<select id="edStartSelect" class="ed-input">' + optionsHtml(nodeIdsNoEndings(), draft.start, draft && draft.nodes) + '</select>'
+          '</div>'
         : '<p class="ed-hint">选中节点后，右侧会列出它的出边与入边。</p>';
 
       side.innerHTML = head + '<div class="ed-list" id="edNodeList">' + nodeListHtml() + '</div>';
@@ -850,9 +848,13 @@
 
   function nodeListHtml() {
     const filter = nodeFilter.trim().toLowerCase();
-    const ids = nodeIds().filter(function (id) {
+    let ids = nodeIds().filter(function (id) {
       return !filter || id.toLowerCase().indexOf(filter) !== -1;
     });
+    // 起点节点置顶
+    if (draft.start && ids.indexOf(draft.start) !== -1) {
+      ids = [draft.start].concat(ids.filter(function (id) { return id !== draft.start; }));
+    }
 
     if (!ids.length) return '<p class="ed-hint">没有匹配的节点</p>';
 
@@ -865,11 +867,15 @@
       const check = multiSelect
         ? '<input type="checkbox" class="ed-list-check" tabindex="-1"' + (selectedIds.has(id) ? ' checked' : '') + '>'
         : '';
-      return '<button type="button" class="ed-list-item' + (active ? ' active' : '') +
-        '" data-node="' + esc(id) + '">' + check +
+      const startBtn = (id !== draft.start && !multiSelect)
+        ? '<button type="button" class="ed-list-action" data-act="set-start" data-node="' + esc(id) + '" title="设为游戏起点">⚑</button>'
+        : '';
+      return '<div class="ed-list-item' + (active ? ' active' : '') + '" data-node="' + esc(id) + '">' +
+        check +
         '<span class="ed-list-name">' + esc(id) + '</span>' +
         '<span class="ed-list-tags">' + tags.join('') + '</span>' +
-      '</button>';
+        startBtn +
+      '</div>';
     }).join('');
   }
 
@@ -2567,6 +2573,21 @@
     }
 
     side.addEventListener('click', function (event) {
+      // ⚑ 设为起点按钮：阻止冒泡到 [data-node] 的选中逻辑
+      const setStartBtn = event.target.closest('[data-act="set-start"]');
+      if (setStartBtn) {
+        event.stopPropagation();
+        const id = setStartBtn.dataset.node;
+        if (id && id !== draft.start) {
+          snapshot();
+          draft.start = id;
+          markDirty();
+          toast('已把「' + id + '」设为起点');
+          render();
+        }
+        return;
+      }
+
       const node = event.target.closest('[data-node]');
       if (node) {
         if (multiSelect && tab === 'nodes') {
@@ -2648,13 +2669,7 @@
     });
 
     side.addEventListener('change', function (event) {
-      if (event.target.id === 'edStartSelect') {
-        if (event.target.value === draft.start) return;
-        snapshot();
-        draft.start = event.target.value;
-        markDirty();
-        render();
-      }
+      // 旧的 edStartSelect 已移除，这里保留空壳以备未来其他 change 事件
     });
 
     main.addEventListener('input', onMainInput);
