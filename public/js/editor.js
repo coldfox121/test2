@@ -2970,7 +2970,10 @@
       const item = ensureVarsArray().find(function (entry) { return entry.id === selectedVar; });
       if (item) {
         if (target.dataset.vf === 'name') item.name = target.value;
-        else item.init = Number(target.value) || 0;
+        else {
+          const n = parseFloat(target.value);
+          item.init = isNaN(n) ? 0 : n;
+        }
         markDirty();
       }
       return;
