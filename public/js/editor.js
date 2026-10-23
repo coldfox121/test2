@@ -1045,7 +1045,10 @@
               '<span class="ed-fp-tip">留空 = 兜底分支，所有条件都不满足时走这里</span>' +
             '</label>' +
             '<label class="ed-field">跳转到' +
-              nodeSelect(branch.next, 'class="ed-input" data-bf="next" data-i="' + index + '" data-bi="' + branchIndex + '"') +
+              '<div class="ed-with-btn">' +
+                nodeSelect(branch.next, 'class="ed-input" data-bf="next" data-i="' + index + '" data-bi="' + branchIndex + '"') +
+                '<button type="button" class="btn-secondary small" data-act="jump-next" data-jump-target="branch" data-i="' + index + '" data-bi="' + branchIndex + '" title="跳到目标节点">→</button>' +
+              '</div>' +
             '</label>' +
             '<button type="button" class="btn-secondary danger" data-act="del-branch" data-i="' + index +
               '" data-bi="' + branchIndex + '">删除分支</button>' +
@@ -1092,7 +1095,10 @@
               '<button type="button" class="btn-secondary" data-act="add-branch" data-i="' + index + '">+ 分支</button>' +
             '</div>'
           : '<label class="ed-field">跳转到' +
-              nodeSelect(choice.next, 'class="ed-input" data-cf="next" data-i="' + index + '"') +
+              '<div class="ed-with-btn">' +
+                nodeSelect(choice.next, 'class="ed-input" data-cf="next" data-i="' + index + '"') +
+                '<button type="button" class="btn-secondary small" data-act="jump-next" data-jump-target="choice" data-i="' + index + '" title="跳到目标节点">→</button>' +
+              '</div>' +
             '</label>') +
         '<div class="ed-grid2">' +
           '<label class="ed-field">解锁条件' +
@@ -3166,6 +3172,21 @@
       if (tab === 'flags' && id) selectedFlag = id;
       if (tab === 'vars' && id) selectedVar = id;
       render();
+    }
+    // 跳转按钮（选项卡片里的「跳转到」下拉旁边的 → 按钮）
+    else if (action === 'jump-next') {
+      const container = target.closest('.ed-with-btn');
+      if (!container) return;
+      const select = container.querySelector('[data-cf="next"], [data-bf="next"]');
+      if (!select) return;
+      const id = select.value;
+      if (id && draft.nodes[id]) {
+        tab = 'nodes';
+        selectedNode = id;
+        render();
+      } else {
+        toast('请先选择一个有效的目标节点');
+      }
     }
   }
 

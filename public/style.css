@@ -2214,3 +2214,24 @@ button.debug-chip:hover { border-color: var(--accent-dark); color: var(--text); 
 
 .ed-var-row:hover { border-color: var(--border); }
 .ed-var-row.active { border-color: var(--accent-dark); background: var(--panel-2); }
+
+/* ---------- 跳转到 + 跳转按钮 ---------- */
+.ed-with-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ed-with-btn .ed-input {
+  flex: 1;
+  min-width: 0;
+}
+.btn-secondary.small {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.btn-secondary.small:hover {
+  border-color: var(--accent-dark);
+  color: var(--accent-light);
+}
