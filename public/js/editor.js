@@ -39,6 +39,20 @@
   let redoStack = [];
   let lastTextSnap = 0;
 
+  /* 无头浏览器（Playwright）不提供原生 prompt/confirm，这里包一层 fallback */
+  function safePrompt(message, defaultVal) {
+    if (typeof window.prompt === 'function') {
+      try { return window.safePrompt(message, defaultVal); } catch (_) {}
+    }
+    return defaultVal == null ? '' : defaultVal;
+  }
+  function safeConfirm(message) {
+    if (typeof window.confirm === 'function') {
+      try { return window.safeConfirm(message); } catch (_) {}
+    }
+    return true;
+  }
+
   /* ---------------- 基础工具 ---------------- */
 
   function esc(value) {
@@ -588,7 +602,7 @@
 
   function close() {
     if (busy) return;
-    if (dirty && !confirm('草稿有未保存的修改，确定关闭编辑器吗？')) return;
+    if (dirty && !safeConfirm('草稿有未保存的修改，确定关闭编辑器吗？')) return;
     layer.hidden = true;
     document.body.classList.remove('editor-open');
   }
@@ -1903,9 +1917,9 @@
       if (!saved) return;
     }
 
-    if (!confirm('确定把当前草稿发布为线上版本吗？玩家刷新页面后生效。')) return;
+    if (!safeConfirm('确定把当前草稿发布为线上版本吗？玩家刷新页面后生效。')) return;
 
-    const note = prompt('发布说明（可选，最多 200 字）：', '');
+    const note = safePrompt('发布说明（可选，最多 200 字）：', '');
     if (note === null) return;
 
     busy = true;
@@ -1963,7 +1977,7 @@
       return;
     }
 
-    const preset = prompt('从「' + selectedNode + '」开始试玩。\n预设旗标（逗号分隔，可留空）：', '');
+    const preset = safePrompt('从「' + selectedNode + '」开始试玩。\n预设旗标（逗号分隔，可留空）：', '');
     if (preset === null) return;
 
     const flags = {};
@@ -2032,7 +2046,7 @@
     if (!selectedIds.size) return toast('还没有选中节点');
     const ids = Array.from(selectedIds).filter(function (id) { return id !== draft.start && draft.nodes[id]; });
     if (!ids.length) return toast('起点节点不能删除');
-    if (!confirm('删除选中的 ' + ids.length + ' 个节点？引用它们的跳转会变成空值，需要重新指定。')) return;
+    if (!safeConfirm('删除选中的 ' + ids.length + ' 个节点？引用它们的跳转会变成空值，需要重新指定。')) return;
 
     snapshot();
     ids.forEach(function (id) { delete draft.nodes[id]; });
@@ -2126,7 +2140,7 @@
     const vars = ensureVarsArray();
     const item = vars.find(function (entry) { return entry.id === selectedVar; });
     if (!item) return;
-    if (!confirm('删除属性「' + (item.name || item.id) + '」？已有节点里的数值变更和条件不会被自动清除，校验会给出提醒。')) return;
+    if (!safeConfirm('删除属性「' + (item.name || item.id) + '」？已有节点里的数值变更和条件不会被自动清除，校验会给出提醒。')) return;
 
     snapshot();
     draft.vars = vars.filter(function (entry) { return entry.id !== selectedVar; });
@@ -2179,7 +2193,7 @@
     const tip = refs.length
       ? '该节点被 ' + refs.length + ' 个选项引用，删除后这些跳转会变成空值，需要你重新指定。仍要删除吗？'
       : '确定删除节点「' + selectedNode + '」吗？';
-    if (!confirm(tip)) return;
+    if (!safeConfirm(tip)) return;
     snapshot();
 
     delete draft.nodes[selectedNode];
@@ -2265,7 +2279,7 @@
       toast('该场景正被 ' + used.length + ' 个节点使用，先改掉这些节点再删除');
       return;
     }
-    if (!confirm('确定删除场景「' + selectedScene + '」吗？')) return;
+    if (!safeConfirm('确定删除场景「' + selectedScene + '」吗？')) return;
     snapshot();
     delete draft.scenes[selectedScene];
     selectedScene = sceneKeys()[0] || null;
@@ -2321,7 +2335,7 @@
     const items = Array.isArray(draft.items) ? draft.items : [];
     const item = items.find(function (item) { return item.id === selectedItemId; });
     if (!item) return;
-    if (!confirm('确定删除物品「' + (item.name || item.id) + '」吗？剧情里已设置的旗标不受影响，只是不再显示在物品栏。')) return;
+    if (!safeConfirm('确定删除物品「' + (item.name || item.id) + '」吗？剧情里已设置的旗标不受影响，只是不再显示在物品栏。')) return;
     snapshot();
     draft.items = items.filter(function (item) { return item.id !== selectedItemId; });
     selectedItemId = draft.items[0] ? draft.items[0].id : null;
@@ -2360,7 +2374,7 @@
       toast('该结局正被 ' + used.length + ' 个节点使用，先改掉这些节点再删除');
       return;
     }
-    if (!confirm('确定删除结局「' + selectedEnding + '」吗？')) return;
+    if (!safeConfirm('确定删除结局「' + selectedEnding + '」吗？')) return;
     snapshot();
 
     draft.endings = draft.endings.filter(function (ending) { return ending.id !== selectedEnding; });
@@ -2440,7 +2454,7 @@
   }
 
   async function restoreVersion(id) {
-    if (!confirm('把该历史版本恢复为草稿？线上版本不会立即变化，确认无误后需要再点发布。')) return;
+    if (!safeConfirm('把该历史版本恢复为草稿？线上版本不会立即变化，确认无误后需要再点发布。')) return;
     busy = true;
     setStatus('恢复版本…');
     try {
