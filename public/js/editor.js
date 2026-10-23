@@ -2816,7 +2816,10 @@
         // 数值变更组件：focus 时显示它自己的静态 dropdown
         hideAllDropdowns();
         const drop = picker.querySelector('.ed-fp-dropdown');
-        if (drop) drop.hidden = false;
+        if (drop) {
+          drop.hidden = false;
+          positionFlagDropdown(picker, drop);
+        }
         return;
       }
       openPicker(picker, input);
@@ -2829,7 +2832,10 @@
       if (picker.classList.contains('ed-varchange')) {
         if (document.activeElement !== input) input.focus();
         const drop = picker.querySelector('.ed-fp-dropdown');
-        if (drop) drop.hidden = false;
+        if (drop) {
+          drop.hidden = false;
+          positionFlagDropdown(picker, drop);
+        }
         return;
       }
       // 确保聚焦，某些情况下点击不会自动 focus
