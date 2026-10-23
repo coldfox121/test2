@@ -2993,6 +2993,13 @@
         choice.next = target.value;
         markDirty();
       }
+      // 选完即跳：直接切到目标节点
+      const val = target.value;
+      if (val && draft.nodes[val]) {
+        tab = 'nodes';
+        selectedNode = val;
+        render();
+      }
       return;
     }
 
@@ -3041,6 +3048,13 @@
       if (choice && Array.isArray(choice.next) && choice.next[branchIndex]) {
         choice.next[branchIndex].next = target.value;
         markDirty();
+      }
+      // 选完即跳
+      const val = target.value;
+      if (val && draft.nodes[val]) {
+        tab = 'nodes';
+        selectedNode = val;
+        render();
       }
     }
   }
