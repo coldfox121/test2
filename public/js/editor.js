@@ -848,10 +848,11 @@
 
   function nodeListHtml() {
     const filter = nodeFilter.trim().toLowerCase();
-    let ids = nodeIds().filter(function (id) {
+    const allIds = nodeIds();
+    let ids = allIds.filter(function (id) {
       return !filter || id.toLowerCase().indexOf(filter) !== -1;
     });
-    // 起点节点置顶
+    // 起点节点在显示顺序里置顶（不管过滤）
     if (draft.start && ids.indexOf(draft.start) !== -1) {
       ids = [draft.start].concat(ids.filter(function (id) { return id !== draft.start; }));
     }
@@ -867,14 +868,24 @@
       const check = multiSelect
         ? '<input type="checkbox" class="ed-list-check" tabindex="-1"' + (selectedIds.has(id) ? ' checked' : '') + '>'
         : '';
+      // 原始列表里的索引（不受过滤影响），用于 moveNode
+      const rawIdx = allIds.indexOf(id);
+      const canUp = !multiSelect && rawIdx > 0;
+      const canDown = !multiSelect && rawIdx < allIds.length - 1;
       const startBtn = (id !== draft.start && !multiSelect)
         ? '<button type="button" class="ed-list-action" data-act="set-start" data-node="' + esc(id) + '" title="设为游戏起点">⚑</button>'
+        : '';
+      const upBtn = canUp
+        ? '<button type="button" class="ed-list-action" data-act="move-node" data-node="' + esc(id) + '" data-dir="-1" title="上移">↑</button>'
+        : '';
+      const downBtn = canDown
+        ? '<button type="button" class="ed-list-action" data-act="move-node" data-node="' + esc(id) + '" data-dir="1" title="下移">↓</button>'
         : '';
       return '<div class="ed-list-item' + (active ? ' active' : '') + '" data-node="' + esc(id) + '">' +
         check +
         '<span class="ed-list-name">' + esc(id) + '</span>' +
         '<span class="ed-list-tags">' + tags.join('') + '</span>' +
-        startBtn +
+        upBtn + downBtn + startBtn +
       '</div>';
     }).join('');
   }
@@ -2453,6 +2464,27 @@
     render();
   }
 
+  function moveNode(id, direction) {
+    const keys = nodeIds().slice(); // 拷贝
+    const idx = keys.indexOf(id);
+    if (idx < 0) return;
+    const target = idx + Number(direction);
+    if (target < 0 || target >= keys.length) return;
+    snapshot();
+    keys.splice(idx, 1);
+    keys.splice(target, 0, id);
+    // 按新顺序重建对象（保留起点在顶端）
+    if (draft.start && keys.indexOf(draft.start) !== 0) {
+      const s = keys.splice(keys.indexOf(draft.start), 1)[0];
+      keys.unshift(s);
+    }
+    const rebuilt = {};
+    keys.forEach(function (k) { rebuilt[k] = draft.nodes[k]; });
+    draft.nodes = rebuilt;
+    markDirty();
+    render();
+  }
+
   async function uploadScene(input) {
     const file = input.files && input.files[0];
     if (!file) return;
@@ -2585,6 +2617,14 @@
           toast('已把「' + id + '」设为起点');
           render();
         }
+        return;
+      }
+
+      // ↑↓ 上移/下移按钮
+      const moveNodeBtn = event.target.closest('[data-act="move-node"]');
+      if (moveNodeBtn) {
+        event.stopPropagation();
+        moveNode(moveNodeBtn.dataset.node, Number(moveNodeBtn.dataset.dir));
         return;
       }
 
