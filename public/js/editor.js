@@ -494,24 +494,27 @@
       .sort();
   }
 
-  /* 判断一个 picker 容器是设置旗标（只接受旗标）还是条件（旗标+数值都接受） */
-  function pickerAcceptsFlags(container) {
-    return true; // 条件和设置都接受旗标
-  }
-  function pickerAcceptsVars(container) {
-    if (!container) return true;
-    // 设置旗标（data-nf-set / data-cf-set）不接受数值属性
-    if (container.dataset.nfSet !== undefined || container.dataset.cfSet !== undefined) return false;
-    return true; // req / hideUnless / bf.req 条件都接受数值属性（用于金币>=3 这种比较）
+  /* 判断一个 picker 是「设置旗标」（只接受旗标）还是「条件」（旗标+数值都接受） */
+  function pickerIsSetter(container) {
+    if (!container) return false;
+    // data-nf-picker="set" — 节点进入时设置旗标
+    // data-cf-set — 选项选中时设置旗标（无值，dataset.cfSet === ''）
+    if (container.dataset.nfPicker === 'set') return true;
+    if (container.dataset.cfSet !== undefined) return true;
+    return false;
   }
 
-  /* 按 picker 类型返回已知名字集合，并标记哪些是数值属性 */
+  function pickerAcceptsVars(container) {
+    // 设置旗标 picker 不接受数值属性，数值要去"数值变更"文本框写 金币+1
+    return !pickerIsSetter(container);
+  }
+
   function collectPickerNamesFor(container) {
     const flagNames = Array.from(new Set(collectAllFlags())).sort();
     const varNameSet = new Set(varNames());
     const varNameList = Array.from(varNameSet).sort();
 
-    const acceptFlags = pickerAcceptsFlags(container);
+    const acceptFlags = true; // 任何 picker 都接受旗标
     const acceptVars = pickerAcceptsVars(container);
 
     const flags = acceptFlags ? flagNames : [];
