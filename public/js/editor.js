@@ -526,10 +526,12 @@
     const acceptFlags = true; // 任何 picker 都接受旗标
     const acceptVars = pickerAcceptsVars(container);
 
-    // setter picker 里要把 vars 从 flag 列表中剔除（旗标是旗标，数值是数值）
-    const flags = acceptFlags
-      ? (acceptVars ? flagNames : flagNames.filter(function (n) { return !varNameSet.has(n); }))
-      : [];
+    // setter picker 里要把 vars 从 flag 列表中剔除
+    // 双重过滤：显式定义的 vars + 推断出来的（set 非 true / 条件是比较式）
+    const usage = acceptVars ? null : flagUsage(); // 只有 setter 需要推断
+    const flags = acceptFlags && !acceptVars
+      ? flagNames.filter(function (n) { return !varNameSet.has(n) && !isLikelyVar(n, usage); })
+      : (acceptFlags ? flagNames : []);
     const vars = acceptVars ? varNameList : [];
     const known = flags.concat(vars);
 
