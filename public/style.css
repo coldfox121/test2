@@ -2235,3 +2235,13 @@ button.debug-chip:hover { border-color: var(--accent-dark); color: var(--text); 
   border-color: var(--accent-dark);
   color: var(--accent-light);
 }
+
+/* flag picker: setter 类型里混进了数值属性 tag — 标红警示 */
+.ed-fp-tag.var-warn {
+  background: var(--danger-soft) !important;
+  border-color: var(--danger) !important;
+  color: var(--danger-light) !important;
+}
+.ed-fp-tag.var-warn:hover {
+  background: var(--danger-border) !important;
+}

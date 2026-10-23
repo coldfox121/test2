@@ -238,15 +238,26 @@
   /* 把数组 ['a', '!b'] 渲染成标签组件 */
   function flagPickerHtml(value, attrs) {
     const list = Array.isArray(value) ? value : (value ? [value] : []);
+    const isSetter = /data-nf-picker="set"|data-cf-set/.test(attrs || '');
+    const vars = isSetter ? new Set(varNames()) : new Set();
     const tags = list.map(function (v) {
       const neg = typeof v === 'string' && v[0] === '!';
-      const label = neg ? ('非 ' + v.slice(1)) : v;
-      return '<span class="ed-fp-tag' + (neg ? ' neg' : '') + '" data-v="' + esc(v) + '">' +
+      const rawName = neg ? String(v).slice(1) : String(v);
+      const label = neg ? ('非 ' + rawName) : rawName;
+      // setter 类型的 picker：如果 tag 对应数值属性，标红警示
+      const varWarn = isSetter && vars.has(rawName) ? ' var-warn' : '';
+      const warnTitle = varWarn ? '数值属性不要在这里设置，改用下方"数值变更"文本框写 金币+1' : '';
+      return '<span class="ed-fp-tag' + neg + varWarn + '" data-v="' + esc(v) + '"' +
+        (warnTitle ? ' title="' + esc(warnTitle) + '"' : '') + '>' +
         esc(label) + '<button type="button" class="ed-fp-x" aria-label="删除">×</button></span>';
     }).join('');
     return '<div class="ed-flag-picker" ' + (attrs || '') + '>' +
       '<div class="ed-fp-tags">' + tags +
-        '<input type="text" class="ed-fp-input" placeholder="' + (tags ? '继续添加…' : '点击选择旗标…') + '">' +
+        '<input type="text" class="ed-fp-input" placeholder="' +
+        (isSetter
+          ? (tags ? '继续添加旗标…' : '点击选择旗标（数值去下方"数值变更"）')
+          : (tags ? '继续添加…' : '点击选择旗标…')) +
+      '">' +
       '</div>' +
       '<div class="ed-fp-dropdown" hidden></div>' +
     '</div>';
