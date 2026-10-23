@@ -243,12 +243,10 @@
     const tags = list.map(function (v) {
       const neg = typeof v === 'string' && v[0] === '!';
       const rawName = neg ? String(v).slice(1) : String(v);
+      // setter picker：数值属性的 tag 直接跳过（不渲染、不标红）
+      if (isSetter && vars.has(rawName)) return '';
       const label = neg ? ('非 ' + rawName) : rawName;
-      // setter 类型的 picker：如果 tag 对应数值属性，标红警示
-      const varWarn = isSetter && vars.has(rawName) ? ' var-warn' : '';
-      const warnTitle = varWarn ? '数值属性不要在这里设置，改用下方"数值变更"文本框写 金币+1' : '';
-      return '<span class="ed-fp-tag' + neg + varWarn + '" data-v="' + esc(v) + '"' +
-        (warnTitle ? ' title="' + esc(warnTitle) + '"' : '') + '>' +
+      return '<span class="ed-fp-tag' + neg + '" data-v="' + esc(v) + '">' +
         esc(label) + '<button type="button" class="ed-fp-x" aria-label="删除">×</button></span>';
     }).join('');
     return '<div class="ed-flag-picker" ' + (attrs || '') + '>' +
@@ -528,7 +526,10 @@
     const acceptFlags = true; // 任何 picker 都接受旗标
     const acceptVars = pickerAcceptsVars(container);
 
-    const flags = acceptFlags ? flagNames : [];
+    // setter picker 里要把 vars 从 flag 列表中剔除（旗标是旗标，数值是数值）
+    const flags = acceptFlags
+      ? (acceptVars ? flagNames : flagNames.filter(function (n) { return !varNameSet.has(n); }))
+      : [];
     const vars = acceptVars ? varNameList : [];
     const known = flags.concat(vars);
 
@@ -580,6 +581,17 @@
     });
 
     return map;
+  }
+
+  /* 推断一个名字是不是数值属性（即使 draft.vars 里没显式定义）：
+     - 只要有任何 set 不是 true（值是数字/+1/-2/=3 等）→ 数值属性
+     - 只要有任何条件是比较式（金币>=3）→ 数值属性 */
+  function isLikelyVar(name, usage) {
+    const u = usage[name];
+    if (!u) return false;
+    if (u.sets.some(function (s) { return s.kind !== 'flag'; })) return true;
+    if (u.refs.some(function (r) { return isCompareCond(r.cond); })) return true;
+    return false;
   }
 
   /* 从起点出发的最短路径（返回 id -> 路径数组） */
@@ -765,9 +777,9 @@
     if (tab === 'flags') {
       const usage = flagUsage();
       const definedVars = new Set(varNames());
-      // 旗标 tab 只列真正的旗标：排除已定义的数值属性（归属性 tab）
+      // 旗标 tab 只列真正的旗标：排除已定义的数值属性 + 推断是数值属性的
       const names = Object.keys(usage)
-        .filter(function (name) { return !definedVars.has(name); })
+        .filter(function (name) { return !definedVars.has(name) && !isLikelyVar(name, usage); })
         .sort();
       if (!selectedFlag || names.indexOf(selectedFlag) === -1) selectedFlag = names[0] || null;
 
@@ -1319,9 +1331,9 @@
   function renderFlagsMain() {
     const usage = flagUsage();
     const definedVars = new Set(varNames());
-    // 旗标 tab 只列真正的旗标：排除已在 draft.vars 里定义的数值属性
+    // 旗标 tab 只列真正的旗标：排除已定义的数值属性 + 推断是数值属性的
     const names = Object.keys(usage)
-      .filter(function (name) { return !definedVars.has(name); })
+      .filter(function (name) { return !definedVars.has(name) && !isLikelyVar(name, usage); })
       .sort();
     if (!names.length) {
       main.innerHTML = '<p class="ed-hint">还没有任何旗标。在节点或选项的「设置旗标」里新建第一个旗标吧。<br>数值属性去左侧「属性」tab 管理。</p>';
