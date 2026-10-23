@@ -186,6 +186,7 @@
         '</div>' +
         '<div class="game-card-actions">' +
           '<button type="button" class="btn-secondary" data-act="edit">编辑</button>' +
+          '<button type="button" class="btn-ghost" data-act="rename">改名</button>' +
           '<button type="button" class="btn-ghost" data-act="link">复制链接</button>' +
           '<button type="button" class="btn-ghost" data-act="' + (published ? 'unpublish' : 'publish') + '">' +
             (published ? '停止发布' : '发布') +
@@ -230,6 +231,26 @@
       if (game) openEditor(game);
     } catch (err) {
       window.Engine.toast('新建失败：' + err.message);
+    }
+  }
+
+  async function renameGame(game) {
+    const next = prompt('修改游戏名称', game.title);
+    if (next === null) return;
+    const name = next.trim().slice(0, 60);
+    if (!name) return window.Engine.toast('名称不能为空');
+    if (name === game.title) return;
+
+    try {
+      await api('admin/games/' + game.id, { method: 'PUT', body: JSON.stringify({ title: name }) });
+      await loadGames();
+      window.Engine.toast('已改名为《' + name + '》');
+      if (currentGame && currentGame.id === game.id) {
+        currentGame.title = name;
+        document.getElementById('editorTitle').textContent = '剧情编辑器 · ' + name;
+      }
+    } catch (err) {
+      window.Engine.toast('改名失败：' + err.message);
     }
   }
 
@@ -294,6 +315,7 @@
 
       const act = button.dataset.act;
       if (act === 'edit') openEditor(game);
+      else if (act === 'rename') renameGame(game);
       else if (act === 'link') copyLink(game);
       else if (act === 'publish' || act === 'unpublish') togglePublish(game);
       else if (act === 'delete') removeGame(game);
