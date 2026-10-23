@@ -984,7 +984,9 @@
         }).join('')
       : '';
 
-    return '<div class="ed-choice">' +
+    const summaryText = String(choice.text || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+
+    return '<div class="ed-choice" data-i="' + index + '">' +
       '<div class="ed-choice-head">' +
         '<strong>选项 ' + (index + 1) + '</strong>' +
         '<div class="ed-form-actions">' +
@@ -992,52 +994,51 @@
           '<button type="button" class="btn-secondary" data-act="move-choice" data-i="' + index + '" data-dir="1">下移</button>' +
           '<button type="button" class="btn-secondary" data-act="choice-new-node" data-i="' + index + '">新建节点并跳转</button>' +
           '<button type="button" class="btn-secondary danger" data-act="del-choice" data-i="' + index + '">删除</button>' +
+          '<button type="button" class="ed-choice-toggle" data-act="toggle-choice" data-i="' + index + '" title="收起/展开选项">' +
+            '<span class="caret">▼</span><span class="summary">' + esc(summaryText) + '</span>' +
+          '</button>' +
         '</div>' +
       '</div>' +
-
-      '<label class="ed-field">文字' +
-        '<textarea class="ed-input" rows="2" data-cf="text" data-i="' + index + '">' + esc(choice.text || '') + '</textarea>' +
-      '</label>' +
-
-      '<div class="ed-grid2">' +
-        '<label class="ed-field">跳转方式' +
-          '<select class="ed-input" data-act="next-type" data-i="' + index + '">' +
-            '<option value="single"' + (isBranch ? '' : ' selected') + '>单节点</option>' +
-            '<option value="branch"' + (isBranch ? ' selected' : '') + '>条件分支</option>' +
-          '</select>' +
+      '<div class="ed-choice-body">' +
+        '<label class="ed-field">文字' +
+          '<textarea class="ed-input" rows="2" data-cf="text" data-i="' + index + '">' + esc(choice.text || '') + '</textarea>' +
         '</label>' +
-        '<div class="ed-field">' +
-          '<div class="ed-label">选中时设置旗标</div>' +
-          flagPickerHtml(setToList(choice.set), 'data-cf-set data-i="' + index + '"') +
+        '<div class="ed-grid2">' +
+          '<label class="ed-field">跳转方式' +
+            '<select class="ed-input" data-act="next-type" data-i="' + index + '">' +
+              '<option value="single"' + (isBranch ? '' : ' selected') + '>单节点</option>' +
+              '<option value="branch"' + (isBranch ? ' selected' : '') + '>条件分支</option>' +
+            '</select>' +
+          '</label>' +
+          '<div class="ed-field">' +
+            '<div class="ed-label">选中时设置旗标</div>' +
+            flagPickerHtml(setToList(choice.set), 'data-cf-set data-i="' + index + '"') +
+          '</div>' +
         '</div>' +
-      '</div>' +
-
-      '<label class="ed-field">选中时数值变更' +
-        '<input class="ed-input" data-nv="choice" data-i="' + index + '" value="' + esc(varChangeText(choice.set)) + '" placeholder="例如：金币+1, 好感-1">' +
-      '</label>' +
-
-      (isBranch
-        ? '<div class="ed-branches">' + branchRows +
-            '<button type="button" class="btn-secondary" data-act="add-branch" data-i="' + index + '">+ 分支</button>' +
-          '</div>'
-        : '<label class="ed-field">跳转到' +
-            nodeSelect(choice.next, 'class="ed-input" data-cf="next" data-i="' + index + '"') +
-          '</label>') +
-
-      '<div class="ed-grid2">' +
-        '<label class="ed-field">解锁条件' +
-          flagPickerHtml(choice.req, 'data-cf="req" data-i="' + index + '"') +
-          '<span class="ed-fp-tip">不满足则选项变灰，提示看下方</span>' +
+        '<label class="ed-field">选中时数值变更' +
+          '<input class="ed-input" data-nv="choice" data-i="' + index + '" value="' + esc(varChangeText(choice.set)) + '" placeholder="例如：金币+1, 好感-1">' +
         '</label>' +
-        '<label class="ed-field">出现条件' +
-          flagPickerHtml(choice.hideUnless, 'data-cf="hideUnless" data-i="' + index + '"') +
-          '<span class="ed-fp-tip">不满足则选项直接不显示</span>' +
+        (isBranch
+          ? '<div class="ed-branches">' + branchRows +
+              '<button type="button" class="btn-secondary" data-act="add-branch" data-i="' + index + '">+ 分支</button>' +
+            '</div>'
+          : '<label class="ed-field">跳转到' +
+              nodeSelect(choice.next, 'class="ed-input" data-cf="next" data-i="' + index + '"') +
+            '</label>') +
+        '<div class="ed-grid2">' +
+          '<label class="ed-field">解锁条件' +
+            flagPickerHtml(choice.req, 'data-cf="req" data-i="' + index + '"') +
+            '<span class="ed-fp-tip">不满足则选项变灰，提示看下方</span>' +
+          '</label>' +
+          '<label class="ed-field">出现条件' +
+            flagPickerHtml(choice.hideUnless, 'data-cf="hideUnless" data-i="' + index + '"') +
+            '<span class="ed-fp-tip">不满足则选项直接不显示</span>' +
+          '</label>' +
+        '</div>' +
+        '<label class="ed-field">锁定时提示文字' +
+          '<input class="ed-input" data-cf="lock" data-i="' + index + '" value="' + esc(choice.lock || '') + '" placeholder="例如：需要一把钥匙">' +
         '</label>' +
       '</div>' +
-
-      '<label class="ed-field">锁定时提示文字' +
-        '<input class="ed-input" data-cf="lock" data-i="' + index + '" value="' + esc(choice.lock || '') + '" placeholder="例如：需要一把钥匙">' +
-      '</label>' +
     '</div>';
   }
 
@@ -2996,6 +2997,9 @@
       draft.nodes[selectedNode].choices.splice(index, 1);
       markDirty();
       render();
+    } else if (action === 'toggle-choice') {
+      const card = target.closest('.ed-choice');
+      if (card) card.classList.toggle('collapsed');
     } else if (action === 'move-choice') {
       moveChoice(index, target.dataset.dir);
     } else if (action === 'choice-new-node') {
